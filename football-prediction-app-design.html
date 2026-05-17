@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Football Prediction App — Design</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:"base", themeVariables:{
+  primaryColor:"#1f2937", primaryTextColor:"#f9fafb", primaryBorderColor:"#10b981",
+  lineColor:"#10b981", secondaryColor:"#374151", tertiaryColor:"#111827",
+  fontFamily:"ui-monospace, SFMono-Regular, Menlo, monospace"}});</script>
+<style>
+  :root{ --bg:#0b0f17; --card:#111827; --line:#1f2937; --txt:#e5e7eb;
+         --mut:#9ca3af; --acc:#10b981; --warn:#f59e0b; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:48px 24px 96px}
+  h1{font-size:2rem;margin:0 0 4px;letter-spacing:-.02em}
+  h2{font-size:1.3rem;margin:48px 0 12px;padding-bottom:8px;
+     border-bottom:1px solid var(--line);color:#fff}
+  h3{font-size:1.05rem;margin:26px 0 6px;color:var(--acc)}
+  .sub{color:var(--mut);margin:0 0 8px}
+  .tag{display:inline-block;background:var(--line);color:var(--mut);
+       font-size:.72rem;padding:2px 10px;border-radius:99px;letter-spacing:.04em}
+  p{margin:10px 0}
+  ul{margin:10px 0;padding-left:22px} li{margin:5px 0}
+  code{background:var(--line);padding:1px 6px;border-radius:4px;font-size:.85em}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.92rem}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);
+        vertical-align:top}
+  th{color:var(--acc);font-weight:600;background:#0e1421}
+  tr:hover td{background:#0e1421}
+  .diagram{background:var(--card);border:1px solid var(--line);
+           border-radius:12px;padding:20px;margin:18px 0;overflow-x:auto}
+  .diagram .mermaid{display:flex;justify-content:center}
+  .lead{font-size:1.08rem;color:#f3f4f6}
+  footer{margin-top:64px;color:var(--mut);font-size:.85rem;
+         border-top:1px solid var(--line);padding-top:16px}
+  a{color:var(--acc)}
+  nav.toc{background:var(--card);border:1px solid var(--line);
+          border-radius:12px;padding:18px 24px;margin:24px 0 8px}
+  nav.toc b{display:block;color:#fff;font-size:.95rem;margin-bottom:8px;
+            letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+  nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:32px;
+             font-size:.92rem}
+  nav.toc li{margin:3px 0;break-inside:avoid}
+  nav.toc a{color:var(--txt);text-decoration:none}
+  nav.toc a:hover{color:var(--acc)}
+  h2{scroll-margin-top:16px}
+  @media(max-width:640px){nav.toc ol{columns:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <span class="tag">DESIGN DOCUMENT · v0.3 · World Cup 2026</span>
+  <h1>Football Prediction App</h1>
+  <p class="sub">Baseline AI match predictions that visibly react to what the user feeds them.</p>
+
+  <nav class="toc" id="toc"><b>Contents</b><ol></ol></nav>
+
+  <h2>1 · Vision</h2>
+  <p class="lead">Mobile-first web app where casual fans get an automatic pre-match
+  prediction — outcome (W/D/L with probabilities) and final score — built from news
+  and stats. The user refines it with a note or article link; the model adapts and
+  explains, in plain language, what changed and why.</p>
+  <p>The hook is the <strong>delta</strong> between baseline and refined prediction.
+  The model visibly reacting to your input is what separates this from every
+  black-box prediction site.</p>
+
+  <h2>2 · Audience &amp; Scope</h2>
+  <p><strong>Audience:</strong> casual fans — not bettors, not analysts. The
+  10-second baseline read satisfies most visits; refinement is for the engaged
+  minority who want to argue with the model.</p>
+  <p><strong>Scope v1:</strong> match outcome (Home / Draw / Away + confidence) and
+  predicted final score only. No xG, possession, or goalscorers — a small surface
+  keeps the baseline easy to explain and the refinement easy to interpret.</p>
+  <p><strong>Launch target: FIFA World Cup 2026</strong> (opens 11 June 2026).
+  The tournament is the primary event the product is built and timed for —
+  global casual audience, intense news coverage, a hard date. Premier League and
+  Champions League are covered as run-up content so the app has live matches and
+  an audience before the opening match.</p>
+
+  <h2>3 · The Baseline</h2>
+  <p>Generated automatically before kickoff and shown to <strong>every visitor,
+  anonymous included</strong>, with zero friction. Each baseline carries the
+  predicted outcome (e.g. <em>Arsenal 2-1, 58% confidence</em>), a short
+  plain-language "why" paragraph naming the driving factors, and inline citations
+  to the source articles.</p>
+  <p><strong>Freshness.</strong> A baseline is generated at ~T-24h, then
+  auto-refreshed when lineups are released (~T-1h) and on major breaking news.
+  Baselines are <strong>versioned</strong>; a refinement records which baseline
+  version it forked from so the delta stays meaningful even after a refresh.</p>
+  <p><strong>Low-coverage matches.</strong> If few or no articles exist, the model
+  falls back to a stats-only baseline with lower confidence, labelled "limited news
+  available". The app never fails to produce a baseline.</p>
+  <p><strong>Citations.</strong> Always available, tap-to-reveal on mobile to keep
+  the card compact — tapping shows source headline and outlet. For casual fans
+  this is the difference between "this site made something up" and "this site read
+  8 articles for me."</p>
+
+  <h2>4 · The Refinement Flow</h2>
+  <p>Beneath the baseline, a single input invites the user to add something the
+  model doesn't know. It accepts free text or a URL. On submit the prediction
+  recalculates with a brief "thinking" animation and lands on a new outcome and a
+  new "why" that explicitly references the user's input.</p>
+  <p>Baseline and refined prediction live <strong>side by side</strong>, never one
+  replacing the other — the delta is the product. The user's input renders as an
+  editable <strong>chip</strong> between them ("you added: Saka injured").</p>
+  <p><strong>Chip rule (one active chip per match).</strong> Submitting a chip is
+  one refinement. Editing or removing that chip is <strong>free</strong> — it
+  re-runs on the same credit, so iterating on one piece of context never feels
+  punishing. Removing the chip reverts cleanly to the baseline. A different chip
+  submitted after removal is a new refinement. This makes the credit model
+  unambiguous.</p>
+  <p><strong>Personal &amp; persistent.</strong> Refinements affect only the
+  requesting user's view — they never pollute the shared baseline, which avoids a
+  launch-day moderation problem. They also survive across sessions: submit at 1pm,
+  return at 2pm, the refined prediction (with editable chip) is still there.</p>
+
+  <h2>5 · Prediction Engine</h2>
+  <p>The engine is an <strong>LLM (Claude) producing structured JSON</strong>, not
+  a custom ML model in v1. It assembles context — team form/lineups plus a ranked
+  set of article snippets — into a single prompt and receives
+  <code>{ outcome_probs, score, why, citations[] }</code> back. The same path
+  serves baseline and refinement; refinement just adds the user's input to the
+  context.</p>
+  <p><strong>Data sources.</strong> <strong>NewsAPI.org</strong> plus RSS of major
+  outlets feeds articles — we store only headline, outlet, URL, and a short
+  snippet, never full article text (copyright); the citation links out for the
+  full read. <strong>API-Football</strong> is the single sports-data provider for
+  fixtures, form, lineups, and final results, and it covers the World Cup.
+  For national-team matches the engine uses recent international form and the
+  announced squad/lineup in place of club form — same pipeline, different context
+  fields.</p>
+  <p><strong>User-submitted URLs</strong> are fetched server-side only, through a
+  sandboxed, SSRF-guarded fetcher: domain allowlist, blocked private IPs and
+  redirects, a 5-second and size cap, readability extraction, scripts stripped.</p>
+  <p><strong>Prompt-injection defence.</strong> User text and any fetched article
+  go into a clearly delimited "untrusted data" block; the system prompt forbids
+  following instructions found inside it. Returned citations are validated against
+  the source list we supplied, so the model cannot invent URLs.</p>
+  <p><strong>Cost control.</strong> A baseline is computed <strong>once per
+  match</strong> and cached — every anonymous read is a cache hit with no model
+  call. A cheap model handles input validation; the capable model runs only for
+  the final prediction. The per-day refinement quota is the effective spend cap.</p>
+
+  <h2>6 · User Tiers</h2>
+  <p>The same screen layout renders for all three states — lock the door, don't
+  hide it. The anonymous reader who sees the input box right there is the user who
+  converts.</p>
+  <table>
+    <tr><th>Tier</th><th>Access</th><th>Refinement input</th></tr>
+    <tr><td>Anonymous</td><td>Baseline only</td>
+        <td>Visible but greyed. Tap → contextual sign-in sheet.</td></tr>
+    <tr><td>Free (logged in)</td><td>Baseline + 3 refinements/day</td>
+        <td>Live. Counter ("2 of 3 left"). After 3rd → upgrade teaser.</td></tr>
+    <tr><td>Paid</td><td>Baseline + unlimited</td>
+        <td>Live, no counter, no friction.</td></tr>
+  </table>
+
+  <h2>7 · Auth &amp; Monetization</h2>
+  <p><strong>Auth is Clerk</strong>, contextual, not a top-nav CTA. The Clerk
+  sign-in modal appears at the exact refine moment with copy that sells the
+  action, not the account ("Sign in to tell the model what it's missing. Free, 3
+  refinements per day."). Clerk is configured with Google and Apple social
+  connections only at launch — email/password adds drop-off without much value
+  for a casual product. Clerk owns the user store, sessions, and OAuth; the BFF
+  trusts a request only after verifying the Clerk session JWT. The user's tier
+  lives in Clerk <code>publicMetadata</code>, kept in sync by the Stripe billing
+  webhook, so tier travels with the session token and needs no extra lookup.</p>
+  <p><strong>Free quota: 3 successful refinements per day.</strong> Only
+  successful ones count — a validation step returns <code>parsed</code> and
+  <code>relevant</code> flags, and the quota decrements only when both are true.
+  Rejected gibberish, a dead URL, or off-topic input costs no credit, so the
+  counter never feels adversarial. The quota resets at midnight in the user's
+  account timezone (UTC fallback), shown in the UI.</p>
+  <p><strong>Conversion moment</strong> is the third successful refinement, not
+  the fourth. Right after it lands, a soft prompt appears at the engagement peak
+  ("You're getting the hang of this. Unlimited refinements all tournament for $5?").
+  The hard wall only comes on the next day's attempt — hitting it cold, without
+  the prior nudge, bounces users.</p>
+  <p><strong>Pricing (v1, USD).</strong> Two passes, no monthly subscription at
+  launch:</p>
+  <ul>
+    <li><strong>$0.99 single-matchday pass</strong> — unlimited refinements for
+      one match day. Matches the casual mental model ("I'll pay for this big
+      game") and keeps billing scope small.</li>
+    <li><strong>$5 World Cup tournament pass</strong> — unlimited refinements for
+      the whole tournament. The event-scoped pass is the main conversion play:
+      one decision, one price, urgency built in by the fixed dates.</li>
+  </ul>
+  <p>A recurring monthly subscription is <strong>deferred until after the World
+  Cup</strong>, once there is repeat-usage data to price it against. The free
+  tier (3 successful refinements/day) is unchanged. A <strong>fair-use ceiling of
+  ~30 successful refinements/day</strong> applies even to pass holders — well
+  above any genuine casual use, there only to cap abuse and protect the model
+  spend that the unlimited passes would otherwise leave uncapped.</p>
+
+  <h2>8 · Trust &amp; Legal</h2>
+  <p>Every prediction carries an "entertainment, not betting advice" disclaimer to
+  stay clear of gambling-adjacent positioning. GDPR from day one: explicit
+  consent, data export and delete, and minimal storage of user-submitted input.</p>
+
+  <h2>9 · Habit Loop <span class="tag">post-MVP, design now</span></h2>
+  <p>After each match concludes, show logged-in users how their refined call
+  compared to the baseline and the actual result ("Your call beat the model 3×
+  this week"). This turns a single-use site into a habit and gives subscribers a
+  tangible reason to keep paying.</p>
+  <p>Even though v1 may ship without it, the data model supports it from day one:
+  every refinement stores a prediction snapshot tied to the eventual outcome.
+  Scoring uses the Brier score for the outcome and scoreline distance for the
+  scoreline; "beat the model" is the better of the two. The profile screen is its
+  natural home.</p>
+
+  <h2>10 · Screen Architecture</h2>
+  <ul>
+    <li><strong>Match list / Home</strong> — today &amp; this-weekend games, each
+      row showing teams, kickoff, and a one-line baseline preview. Filter by
+      league; onboarding surfaces favourite leagues so Home feels personal.</li>
+    <li><strong>Match detail</strong> — the main page. Header → baseline card
+      (why + citations) → refinement input → refined card when present. Includes
+      the refinement counter for free users.</li>
+    <li><strong>Contextual sign-in sheet</strong> — Clerk sign-in modal over
+      match detail when an anonymous user taps the input. Google/Apple. Value-led
+      copy.</li>
+    <li><strong>Contextual upgrade sheet</strong> — soft after the 3rd successful
+      refinement, hard on daily-limit hit. Matchday-pass + World Cup
+      tournament-pass options.</li>
+    <li><strong>Profile / Settings</strong> — logged-in only. Favourite leagues,
+      account, subscription. Post-MVP: refinement history and accuracy record.</li>
+  </ul>
+
+  <h2>11 · System Architecture</h2>
+  <div class="diagram">
+  <pre class="mermaid">
+graph TD
+  FE["1 · Web Frontend<br/>mobile-first SPA"] --> BFF["2 · Backend API / BFF<br/>auth gate · quota · orchestration"]
+  FE -->|sign-in modal| CLERK["3 · Clerk (managed)<br/>users · sessions · Google/Apple OAuth<br/>tier in publicMetadata"]
+  BFF -->|verify session JWT| CLERK
+  BFF --> PE["4 · Prediction Engine<br/>baseline + refined"]
+  PE --> GW["5 · LLM Gateway<br/>Claude · structured output<br/>injection isolation · cost log"]
+  GW --> CLAUDE(("Claude API"))
+  BFF --> CACHE[("9 · Cache · Redis<br/>baseline · quota · rate limit")]
+  BFF --> DB[("8 · Datastore · Postgres<br/>users · matches · snapshots")]
+  PE --> DB
+  PE --> CACHE
+  ING["6 · Ingestion Workers<br/>news · fixtures · lineups · results"] --> DB
+  URLF["7 · URL Fetcher/Extractor<br/>sandboxed · SSRF-guarded"] --> PE
+  BFF --> URLF
+  SCH["10 · Scheduler<br/>cron triggers"] --> ING
+  SCH --> PE
+  BILL["11 · Billing · Stripe<br/>matchday + WC tournament pass"] --> BFF
+  BILL -->|webhook sets tier| CLERK
+  BFF --> AN["12 · Analytics / Observability<br/>events · A/B · cost · accuracy"]
+  ING --> NEWS(("News API / RSS"))
+  ING --> SPORTS(("Sports-data provider"))
+  </pre>
+  </div>
+  <table>
+    <tr><th>#</th><th>Component</th><th>Role</th></tr>
+    <tr><td>1</td><td>Web Frontend</td><td>Match list, match detail, baseline +
+      refined cards side-by-side, chip UI, contextual sign-in / upgrade sheets.
+      Single vertical scroll.</td></tr>
+    <tr><td>2</td><td>Backend API (BFF)</td><td>Auth gate, quota enforcement,
+      serves cached baselines, orchestrates refinement, owns business rules.</td></tr>
+    <tr><td>3</td><td>Clerk (managed)</td><td>User store, sessions, Google/Apple
+      OAuth, sign-in UI. Tier held in <code>publicMetadata</code>. BFF verifies
+      its session JWT — no auth code we own.</td></tr>
+    <tr><td>4</td><td>Prediction Engine</td><td>Assembles context, calls the LLM
+      gateway, parses + validates output, attaches citations. Builds both
+      baseline and refined predictions.</td></tr>
+    <tr><td>5</td><td>LLM Gateway</td><td>Single choke point for Claude calls:
+      prompt templates, structured-output schema, untrusted-input isolation,
+      usage/cost logging, retries.</td></tr>
+    <tr><td>6</td><td>Ingestion Workers</td><td>Scheduled: news fetch/rank,
+      fixtures + lineups + form sync, post-match results sync.</td></tr>
+    <tr><td>7</td><td>URL Fetcher/Extractor</td><td>Sandboxed, SSRF-guarded fetch
+      + readability extraction for user links. Isolated from the main API.</td></tr>
+    <tr><td>8</td><td>Datastore (Postgres)</td><td>Users, tiers, matches, baseline
+      versions, refinements, prediction snapshots, citations, quota ledger,
+      results.</td></tr>
+    <tr><td>9</td><td>Cache (Redis)</td><td>Baseline cache, rate limits, per-user
+      quota counters, sessions.</td></tr>
+    <tr><td>10</td><td>Scheduler</td><td>Cron: baseline gen (T-24h), lineup
+      refresh (T-1h), breaking-news refresh, post-match scoring.</td></tr>
+    <tr><td>11</td><td>Billing (Stripe)</td><td>$0.99 matchday pass + $5 World Cup
+      tournament pass. Webhook writes the new tier into Clerk
+      <code>publicMetadata</code>.</td></tr>
+    <tr><td>12</td><td>Analytics / Observability</td><td>Event tracking, pricing
+      A/B, LLM cost dashboard, accuracy feed for the habit loop.</td></tr>
+  </table>
+
+  <h2>12 · Component Deep-Dive</h2>
+  <p>One scenario runs through every component below.
+  <em>Saturday, 16:00 kickoff — Arsenal vs Chelsea. Mia, a casual Arsenal fan,
+  opens the app on her phone at 14:30. She is not logged in yet.</em></p>
+
+  <h3>1 · Web Frontend</h3>
+  <p><strong>What it does:</strong> the only thing the user touches — a
+  mobile-first single-page web app. Renders the match list, the match-detail page
+  with baseline and refined cards side by side, the chip UI, and hosts the
+  contextual Clerk and Stripe sheets. Holds no business logic and no secrets; it
+  asks the BFF for everything.</p>
+  <p><strong>Role in the flow:</strong> entry and exit point. Turns user gestures
+  into BFF calls and BFF responses into screens.</p>
+  <p><strong>Example:</strong> Mia taps the "Arsenal vs Chelsea" row on Home. The
+  frontend opens match detail and shows the baseline card —
+  <em>"Arsenal 2-1, 58%"</em>, a short why-paragraph, three citation chips. The
+  refinement box is visible but greyed because she is anonymous.</p>
+
+  <h3>2 · Backend API (BFF)</h3>
+  <p><strong>What it does:</strong> the single trusted server the frontend talks
+  to. Verifies the Clerk session, enforces the daily quota, reads the baseline
+  cache, orchestrates refinement (URL fetch → Prediction Engine), and owns every
+  business rule. Hides all internal services behind one boundary.</p>
+  <p><strong>Role in the flow:</strong> the conductor — nothing reaches the
+  engine, cache, or database except through it.</p>
+  <p><strong>Example:</strong> Mia's phone calls <code>GET
+  /match/123/baseline</code>. The BFF sees baseline needs no auth, asks the Cache,
+  gets a hit, returns it in milliseconds — no model call, no database write.</p>
+
+  <h3>3 · Clerk (managed auth)</h3>
+  <p><strong>What it does:</strong> a hosted service that owns the user store,
+  sessions, the sign-in UI, and Google/Apple OAuth. We write no auth code. The
+  user's tier lives in Clerk <code>publicMetadata</code> and travels inside the
+  session token.</p>
+  <p><strong>Role in the flow:</strong> the gate. The BFF trusts a request only
+  after verifying Clerk's session JWT and reading the tier from it.</p>
+  <p><strong>Example:</strong> Mia taps the greyed input. The Clerk modal slides
+  up — "Sign in to tell the model what it's missing. Free, 3 refinements per
+  day." She taps <em>Continue with Google</em>, returns signed in; the next BFF
+  call carries a JWT that says <code>tier: free</code>.</p>
+
+  <h3>4 · Prediction Engine</h3>
+  <p><strong>What it does:</strong> builds both baseline and refined predictions.
+  Gathers context (team form, lineup, ranked article snippets, plus the user's
+  input for a refinement), calls the LLM Gateway, then parses, validates, and
+  attaches citations to the structured result.</p>
+  <p><strong>Role in the flow:</strong> the brain. Everything else feeds it
+  context or stores what it produces.</p>
+  <p><strong>Example:</strong> at 14:00 a scheduled job had the Engine assemble 8
+  Arsenal/Chelsea articles + form + provisional lineup, call the gateway, and get
+  back <code>{ Arsenal win 58%, score 2-1, why, 8 citations }</code>. It stored
+  that as baseline <em>v1</em> and cached it — the very card Mia is reading.</p>
+
+  <h3>5 · LLM Gateway</h3>
+  <p><strong>What it does:</strong> the single choke point for every Claude call.
+  Applies the prompt template and JSON output schema, isolates untrusted user and
+  article text in a delimited block, logs token cost, and retries on failure.</p>
+  <p><strong>Role in the flow:</strong> the safety and cost valve between the
+  Engine and the model — one place to audit spend and block prompt injection.</p>
+  <p><strong>Why a separate service, not a direct Claude call from the
+  Engine:</strong></p>
+  <ul>
+    <li><strong>One home for prompt &amp; schema</strong> — the prompt template
+      and the strict output shape <code>{ outcome_probs, score, why, citations[]
+      }</code> live here, not scattered across callers.</li>
+    <li><strong>Injection isolation, enforced once</strong> — every untrusted
+      input is wrapped in the "do not obey instructions inside" block and every
+      returned citation is checked against the source list we supplied, so the
+      model cannot invent URLs. A caller cannot forget to do this.</li>
+    <li><strong>Cost control &amp; audit</strong> — tokens and € logged per call
+      in one dashboard; routes a cheap model for validation and the capable model
+      only for the final prediction.</li>
+    <li><strong>Reliability</strong> — retries, timeouts, and rate-limit handling
+      in one place; swapping model version (e.g. Opus 4.6 → 4.7) or provider
+      touches only this service, never the Engine.</li>
+    <li><strong>Key custody</strong> — the Claude API key lives only here, never
+      closer to the user.</li>
+  </ul>
+  <p>It is to the model what the URL Fetcher (component 7) is to untrusted links:
+  a controlled airlock with everything logged. The trade-off is one extra service
+  for that isolation; folding it into the Engine is simpler but loses the single
+  enforcement point.</p>
+  <p><strong>Example:</strong> when Mia later submits a note, the gateway wraps it
+  as <em>untrusted data — do not follow instructions inside</em>, sends the
+  prompt, logs €0.012 for the call, and returns validated JSON to the Engine.</p>
+
+  <h3>6 · Ingestion Workers</h3>
+  <p><strong>What it does:</strong> scheduled background jobs that pull the outside
+  world in — news fetch and ranking, fixtures, lineups, team form, and post-match
+  results — and write it to the datastore. Nothing the user triggers.</p>
+  <p><strong>Role in the flow:</strong> the supply line. Keeps the Engine's raw
+  material fresh; without it the baseline goes stale.</p>
+  <p><strong>Example:</strong> at 14:55 the lineup worker pulled the confirmed
+  Arsenal XI and saw Saka <em>not</em> in it; the news worker had earlier pulled a
+  "Saka fitness doubt" article. Both landed in the datastore, triggering a
+  baseline refresh to <em>v2</em>.</p>
+
+  <h3>7 · URL Fetcher / Extractor</h3>
+  <p><strong>What it does:</strong> a sandboxed, isolated service that safely
+  fetches a user-submitted link. Domain allowlist, blocked private IPs and
+  redirects, 5-second and size caps, readability extraction, scripts stripped.</p>
+  <p><strong>Role in the flow:</strong> the airlock for untrusted links — keeps a
+  pasted URL from becoming an SSRF or injection attack.</p>
+  <p><strong>Example:</strong> instead of typing, Mia pastes a Sky Sports article
+  link. The fetcher confirms the domain is allowed, downloads it, strips scripts,
+  and hands the Engine a clean 600-word extract.</p>
+
+  <h3>8 · Datastore (Postgres)</h3>
+  <p><strong>What it does:</strong> the durable system of record — users' app
+  data, matches, baseline versions, every refinement, prediction snapshots,
+  citations, the quota ledger, and final results.</p>
+  <p><strong>Role in the flow:</strong> long-term memory. Makes refinements
+  persist across sessions and makes post-match scoring possible.</p>
+  <p><strong>Example:</strong> Mia's refinement is stored as a snapshot —
+  <em>match 123, baseline v2, input "Saka injured", predicted Arsenal 1-1</em> —
+  tied to match 123 so it can be scored after the final whistle.</p>
+
+  <h3>9 · Cache (Redis)</h3>
+  <p><strong>What it does:</strong> fast in-memory store for the computed
+  baseline, rate limits, per-user quota counters, and sessions.</p>
+  <p><strong>Role in the flow:</strong> the cost shield. Anonymous baseline reads
+  hit Redis, never the model — this is what makes free, unlimited baseline
+  viewing affordable.</p>
+  <p><strong>Example:</strong> 4,000 people open this match before kickoff. All
+  4,000 get baseline v2 from Redis in ~8 ms with zero model calls. Mia's counter
+  reads <code>mia:2026-05-16 → 1</code> after her first refinement.</p>
+
+  <h3>10 · Scheduler</h3>
+  <p><strong>What it does:</strong> fires time-based jobs — baseline generation at
+  T-24h, lineup refresh at T-1h, breaking-news refreshes, and post-match scoring.</p>
+  <p><strong>Role in the flow:</strong> the clock. Drives everything that must
+  happen at a moment rather than in response to a user.</p>
+  <p><strong>Example:</strong> the T-1h job fired at 15:00, told the Engine to
+  rebuild on the confirmed lineup (→ v2). At 18:00 it will fire the scoring job
+  for this match.</p>
+
+  <h3>11 · Billing (Stripe)</h3>
+  <p><strong>What it does:</strong> handles payment — the monthly subscription and
+  the single-matchday pass — via Stripe Checkout. On a successful payment its
+  webhook writes the new tier into Clerk <code>publicMetadata</code>.</p>
+  <p><strong>Role in the flow:</strong> the upgrade path. Converts the soft prompt
+  into a tier change that the next session token reflects automatically.</p>
+  <p><strong>Example:</strong> after Mia's 3rd successful refinement the soft
+  prompt appears. She taps it, pays €4/month in Stripe Checkout; the webhook flips
+  her Clerk metadata to <code>tier: paid</code>. Her next refinement has no
+  counter.</p>
+
+  <h3>12 · Analytics / Observability</h3>
+  <p><strong>What it does:</strong> records product events, drives the pricing
+  A/B test, tracks LLM cost, and feeds the post-match accuracy comparison for the
+  habit loop.</p>
+  <p><strong>Role in the flow:</strong> the feedback layer — tells us what is
+  working and powers "your call beat the model".</p>
+  <p><strong>Example:</strong> Mia's session logged <code>baseline_view</code>,
+  <code>refine_success</code>, A/B bucket <code>price_4eur</code>, and €0.04 total
+  model spend. After full-time, the scoring job emits
+  <em>"Mia's 1-1 call beat the model's 2-1"</em> — surfaced on her profile.</p>
+
+  <h2>13 · Request Flows</h2>
+
+  <h3>Baseline view — anonymous, no LLM call</h3>
+  <div class="diagram">
+  <pre class="mermaid">
+sequenceDiagram
+  participant U as User
+  participant FE as Frontend
+  participant BFF as BFF
+  participant C as Cache
+  participant PE as Prediction Engine
+  participant GW as LLM Gateway
+  U->>FE: open match
+  FE->>BFF: GET baseline
+  BFF->>C: lookup cached baseline
+  alt cache hit
+    C-->>BFF: baseline (no LLM)
+  else miss
+    BFF->>PE: build baseline
+    PE->>GW: prompt (stats + articles)
+    GW-->>PE: structured prediction
+    PE->>C: store + cache
+    PE-->>BFF: baseline
+  end
+  BFF-->>FE: baseline + why + citations
+  </pre>
+  </div>
+
+  <h3>Refinement — auth + quota gated</h3>
+  <div class="diagram">
+  <pre class="mermaid">
+sequenceDiagram
+  participant U as User
+  participant BFF as BFF
+  participant URL as URL Fetcher
+  participant PE as Prediction Engine
+  participant GW as LLM Gateway
+  U->>BFF: submit chip (text or URL)
+  BFF->>BFF: auth + quota check
+  opt input is URL
+    BFF->>URL: fetch (SSRF-guarded)
+    URL-->>BFF: extracted text
+  end
+  BFF->>PE: refine(baseline_version, input)
+  PE->>GW: prompt (untrusted block isolated)
+  GW-->>PE: validated prediction
+  PE-->>BFF: refined + delta + new why
+  alt successful
+    BFF->>BFF: decrement quota
+  else gibberish / dead URL
+    BFF->>BFF: no charge
+  end
+  BFF-->>U: refined card (side-by-side)
+  </pre>
+  </div>
+
+  <h3>Post-match — habit loop scoring</h3>
+  <div class="diagram">
+  <pre class="mermaid">
+sequenceDiagram
+  participant S as Scheduler
+  participant ING as Ingestion
+  participant DB as Datastore
+  participant AN as Analytics
+  S->>ING: match concluded
+  ING->>DB: write final result
+  S->>DB: load prediction snapshots
+  S->>S: score (Brier + scoreline distance)
+  S->>AN: baseline vs user vs actual
+  AN-->>DB: accuracy feed (profile / habit loop)
+  </pre>
+  </div>
+
+  <h2>14 · Decisions &amp; Remaining Risks</h2>
+  <h3>Locked for v1</h3>
+  <ul>
+    <li><strong>Pricing</strong> — $0.99 matchday pass + $5 World Cup tournament
+      pass; recurring monthly subscription deferred until after the World Cup.
+      (§7)</li>
+    <li><strong>Leagues</strong> — World Cup is the launch target; Premier League
+      + Champions League covered as run-up. No other competitions in v1. (§2)</li>
+    <li><strong>Vendors</strong> — API-Football (sports data) + NewsAPI.org
+      (news). (§5)</li>
+    <li><strong>Refinement style</strong> — one-shot; chat-style deferred.</li>
+    <li><strong>Community</strong> — leaderboards / fan stream deferred past v1
+      (moderation + the personal-refinement guarantee).</li>
+  </ul>
+  <h3>Remaining risks</h3>
+  <ul>
+    <li><strong>Timeline</strong> — World Cup opens 11 June 2026. The app must be
+      live and indexed before the group stage; this date does not move and is the
+      dominant constraint on v1 scope.</li>
+    <li><strong>Cost concentration</strong> — unlimited-refinement passes across
+      ~104 matches in five weeks. Mitigated by the ~30/day fair-use ceiling (§7);
+      validate real per-user model cost early against the $5 price.</li>
+    <li><strong>Currency / localization</strong> — pricing is USD only at launch;
+      multi-currency and localization deferred.</li>
+    <li><strong>Low-coverage nations</strong> — minnow fixtures get thin news;
+      the stats-only fallback (§3) carries more weight at a World Cup than in
+      club football and should be tested before the tournament.</li>
+  </ul>
+
+  <h2>15 · Data Model</h2>
+  <p>Postgres (component 8). ~14 tables. Clerk owns identity and holds the user's
+  tier in <code>publicMetadata</code> as a JWT-side <em>cache</em>; the
+  <code>entitlement</code> table below is the tier <em>source of truth</em>.
+  Analytics events (§12) live in a separate store, not in this schema.</p>
+  <p><em>How to read the diagram:</em> each box is a table, grouped by purpose.
+  An arrow is a relationship — follow the label as a sentence from the box it
+  starts at (e.g. <em>match → "gets several versions of" → baseline</em> means one
+  match has many baseline versions). Exact columns are in the table below it.</p>
+
+  <div class="diagram">
+  <pre class="mermaid">
+flowchart TD
+  subgraph ID["Identity / prefs"]
+    USER["app_user<br/><i>a person</i>"]
+    UL["user_league<br/><i>their fav leagues</i>"]
+  end
+  subgraph FB["Football reference data"]
+    LG["league<br/><i>PL / CL / World Cup</i>"]
+    TM["team<br/><i>club or nation</i>"]
+    MT["match<br/><i>a fixture</i>"]
+    MR["match_result<br/><i>final score</i>"]
+  end
+  subgraph NW["News"]
+    AR["article<br/><i>a news item</i>"]
+  end
+  subgraph PR["Predictions"]
+    BL["baseline<br/><i>auto prediction, versioned</i>"]
+    BC["baseline_citation<br/><i>articles a baseline used</i>"]
+    RF["refinement<br/><i>user's added input</i>"]
+    PS["prediction_snapshot<br/><i>a frozen prediction</i>"]
+    SS["snapshot_score<br/><i>how accurate it was</i>"]
+  end
+  subgraph MN["Money / entitlement"]
+    EN["entitlement<br/><i>passes the user bought</i>"]
+    QL["quota_ledger<br/><i>daily refinement count</i>"]
+  end
+
+  USER -->|picks favourite leagues| UL
+  LG   -->|appears in| UL
+  LG   -->|has many fixtures| MT
+  TM   -->|plays home &amp; away in| MT
+  MT   -->|ends with one| MR
+  MT   -->|gets several versions of| BL
+  BL   -->|lists which| BC
+  AR   -->|is referenced by| BC
+  USER -->|submits| RF
+  MT   -->|is refined on| RF
+  BL   -->|user forks a version into| RF
+  BL   -->|frozen as| PS
+  RF   -->|frozen as| PS
+  MR   -->|compared against| SS
+  PS   -->|scored into| SS
+  USER -->|holds| EN
+  USER -->|counted in| QL
+  </pre>
+  </div>
+
+  <h3>Tables by purpose</h3>
+  <table>
+    <tr><th>Group</th><th>Table</th><th>Purpose</th></tr>
+    <tr><td rowspan="2">Identity / prefs</td><td><code>app_user</code></td>
+      <td>App data keyed by Clerk id. Timezone (quota reset), GDPR delete/export.
+      No email/password — Clerk owns those.</td></tr>
+    <tr><td><code>user_league</code></td><td>Favourite leagues from onboarding;
+      personalises Home.</td></tr>
+    <tr><td rowspan="4">Football reference<br/>(Ingestion-fed)</td>
+      <td><code>league</code></td><td>PL, CL, World Cup. Club vs national.</td></tr>
+    <tr><td><code>team</code></td><td>Clubs and national sides;
+      <code>is_national</code> switches engine context fields (§5).</td></tr>
+    <tr><td><code>match</code></td><td>The fixture: teams, kickoff, status.</td></tr>
+    <tr><td><code>match_result</code></td><td>Final score + outcome, written
+      post-match. Drives scoring.</td></tr>
+    <tr><td>News</td><td><code>article</code></td><td>Headline/outlet/url/snippet
+      only — never full text (copyright, §5).</td></tr>
+    <tr><td rowspan="5">Predictions</td><td><code>baseline</code></td>
+      <td>Versioned prediction per match (refresh trigger recorded, §3).</td></tr>
+    <tr><td><code>baseline_citation</code></td><td>Which articles drove that
+      baseline version.</td></tr>
+    <tr><td><code>refinement</code></td><td>User input + extracted URL text +
+      status + whether it charged a credit (§4, §7).</td></tr>
+    <tr><td><code>prediction_snapshot</code></td><td>Frozen copy of a baseline or
+      refined call for fair post-match scoring (§9).</td></tr>
+    <tr><td><code>snapshot_score</code></td><td>Brier + scoreline distance vs
+      result; <code>beat_baseline</code> feeds the habit loop.</td></tr>
+    <tr><td rowspan="2">Money / entitlement</td><td><code>entitlement</code></td>
+      <td><strong>Tier source of truth.</strong> Matchday / WC tournament pass
+      with validity window + Stripe ref. Clerk metadata mirrors it.</td></tr>
+    <tr><td><code>quota_ledger</code></td><td>Durable daily success count (Redis
+      holds the live counter). Reset boundary + ~30/day fair-use cap (§7).</td></tr>
+  </table>
+  <p><strong>Notes.</strong> <code>prediction_snapshot</code> is polymorphic —
+  exactly one of <code>baseline_id</code> / <code>refinement_id</code> set,
+  enforced by a check constraint. "One active chip per match" (§4) is an
+  application rule, not a DB constraint — old refinements are retained for the
+  habit loop. Effective tier = any <code>entitlement</code> row where
+  <code>now()</code> is within <code>[valid_from, valid_to]</code> and
+  <code>status='active'</code>; the Stripe webhook writes here first, then syncs
+  Clerk.</p>
+
+  <h2>16 · Implementation Plan</h2>
+  <p><strong>Stack:</strong> .NET, orchestrated by <strong>.NET Aspire</strong>.
+  The Aspire AppHost wires every service, config, and service discovery, and
+  ships OpenTelemetry tracing/logging/metrics + the Aspire dashboard out of the
+  box — so component 12's observability is largely free; only product-analytics
+  events need a Postgres sink.</p>
+  <p><strong>Hard deadline: World Cup opens 11 June 2026</strong> (~4 weeks from
+  design freeze). The plan below is a critical path, not a wishlist — the
+  cut-line at the end is part of the plan, not a failure mode.</p>
+
+  <h3>Component → technology</h3>
+  <table>
+    <tr><th>#</th><th>Component</th><th>Tech</th></tr>
+    <tr><td>—</td><td>Orchestration</td><td>.NET Aspire AppHost +
+      ServiceDefaults — service discovery, config, OTel, dashboard.</td></tr>
+    <tr><td>1</td><td>Web Frontend</td><td>React SPA (Vite + TypeScript),
+      mobile-first. Clerk React SDK. Orchestrated as an Aspire node resource;
+      talks to the ASP.NET BFF.</td></tr>
+    <tr><td>2</td><td>Backend API (BFF)</td><td>ASP.NET Core Minimal API.</td></tr>
+    <tr><td>3</td><td>Clerk</td><td>Managed. JWT bearer via JWKS in .NET;
+      clerk-js in the frontend.</td></tr>
+    <tr><td>4</td><td>Prediction Engine</td><td>.NET worker service.</td></tr>
+    <tr><td>5</td><td>LLM Gateway</td><td>.NET service → Anthropic API, structured
+      JSON output, cost logged via OTel.</td></tr>
+    <tr><td>6</td><td>Ingestion Workers</td><td>.NET hosted services; HttpClient →
+      API-Football + NewsAPI.org.</td></tr>
+    <tr><td>7</td><td>URL Fetcher</td><td>Isolated .NET service, SSRF-guarded.</td></tr>
+    <tr><td>8</td><td>Datastore</td><td>Postgres + EF Core (Npgsql); Aspire PG
+      integration.</td></tr>
+    <tr><td>9</td><td>Cache</td><td>Redis (StackExchange.Redis); Aspire Redis
+      integration.</td></tr>
+    <tr><td>10</td><td>Scheduler</td><td>Quartz.NET (or hosted timers) in a
+      worker.</td></tr>
+    <tr><td>11</td><td>Billing</td><td>Stripe.net + webhook endpoint on the
+      BFF.</td></tr>
+    <tr><td>12</td><td>Observability</td><td>Aspire + OTel + dashboard; product
+      events → a Postgres table.</td></tr>
+  </table>
+
+  <h3>Phased build (~28 days)</h3>
+  <table>
+    <tr><th>Phase</th><th>Days</th><th>Deliverable</th></tr>
+    <tr><td><strong>0 · Foundations</strong></td><td>1–3</td><td>Aspire solution
+      (AppHost + service projects + ServiceDefaults). Aspire Postgres + Redis.
+      EF Core model + first migration for all §15 tables. Clerk app + JWT bearer
+      in BFF + Clerk React SDK wired in the frontend shell. Vite app registered
+      as an Aspire resource. CI + deploy target (Azure Container Apps).</td></tr>
+    <tr><td><strong>1 · Ingestion</strong></td><td>3–7</td><td>API-Football
+      client (World Cup + PL + CL leagues/teams/fixtures). NewsAPI client
+      (fetch + rank + dedupe, metadata only). Scheduler triggers (T-24h, T-1h).
+      Seed WC fixtures.</td></tr>
+    <tr><td><strong>2 · Prediction core</strong></td><td>6–11</td><td>LLM Gateway
+      (prompt template, JSON schema, untrusted-input wrapper, cost log, retry).
+      Prediction Engine (context assembly → gateway → validate → baseline +
+      snapshot → Redis cache). Versioning + refresh triggers.</td></tr>
+    <tr><td><strong>3 · Baseline read</strong></td><td>10–15</td><td>React match
+      list + match detail + baseline card + tap-to-reveal citations. BFF
+      list/baseline endpoints. <strong>Anonymous end-to-end shippable.</strong></td></tr>
+    <tr><td><strong>4 · Refinement + auth</strong></td><td>14–20</td><td>Clerk
+      contextual modal; BFF JWT verify + tier claim. URL Fetcher. Refinement
+      path in Engine; quota (Redis + ledger); success-gating; ~30/day fair-use
+      cap. Chip UI, side-by-side, persistence. <strong>The product hook.</strong></td></tr>
+    <tr><td><strong>5 · Monetization</strong></td><td>19–24</td><td>Stripe $0.99
+      matchday + $5 WC tournament pass; Checkout; webhook → entitlement →
+      sync Clerk metadata. Soft prompt + hard wall + upgrade sheet. Effective-tier
+      resolution.</td></tr>
+    <tr><td><strong>6 · Harden + launch</strong></td><td>23–28</td><td>Post-match
+      results + snapshot scoring job (data only; habit-loop UI post-WC). Security
+      pass (SSRF / injection / rate limits / secrets). Load test (group-stage
+      concurrent baseline reads off cache). Cost + error alerting. Launch &amp;
+      index before 11 June.</td></tr>
+  </table>
+
+  <h3>Phase exit criteria <span class="tag">what you can test after each phase</span></h3>
+  <p>Every phase ends with a runnable, demoable artifact — not just merged code.</p>
+  <table>
+    <tr><th>Phase</th><th>Testable exit — concretely verifiable</th></tr>
+    <tr><td><strong>0</strong></td><td><code>aspire run</code> brings up all
+      services green in the Aspire dashboard; Postgres has the §15 schema (migration
+      applied); a health endpoint returns 200 behind a valid Clerk JWT and 401
+      without one; the React shell loads with a working Clerk sign-in.</td></tr>
+    <tr><td><strong>1</strong></td><td>Run the ingestion job → World Cup fixtures,
+      teams, and ranked articles are queryable in Postgres. Integration test
+      asserts a known WC fixture and ≥1 linked article exist after a sync.</td></tr>
+    <tr><td><strong>2</strong></td><td>Call the Prediction Engine for a seeded
+      fixture → a valid baseline (probabilities sum to 1, score, why, citations
+      resolve to real articles) is stored and cached. Re-request hits Redis, no
+      second LLM call (assert via OTel span / cost log = 0).</td></tr>
+    <tr><td><strong>3</strong></td><td>Open the deployed URL on a phone as an
+      anonymous user: match list → match detail → baseline card with working
+      citations. End-to-end smoke test (Playwright) passes against a real WC
+      fixture.</td></tr>
+    <tr><td><strong>4</strong></td><td>Sign in via Clerk, submit a text refinement
+      and a URL refinement → refined card appears side-by-side with a changed
+      "why"; chip edit/remove works; 4th refinement is blocked; gibberish does not
+      consume a credit. E2E test covers the full hook.</td></tr>
+    <tr><td><strong>5</strong></td><td>Buy a $5 WC pass in Stripe test mode →
+      webhook flips tier, counter disappears, refinements are unlimited (to the
+      fair-use cap). Test asserts entitlement row + Clerk metadata in sync.</td></tr>
+    <tr><td><strong>6</strong></td><td>Settle a finished fixture → snapshot scoring
+      job writes Brier + scoreline distance. Security checks pass (SSRF/injection
+      suite). Load test sustains target concurrent baseline reads off cache within
+      latency budget.</td></tr>
+  </table>
+
+  <h3>Testing strategy</h3>
+  <ul>
+    <li><strong>Unit</strong> — xUnit for .NET services (engine validation, quota
+      rules, entitlement/tier resolution, SSRF guard); Vitest for React.</li>
+    <li><strong>Integration</strong> — <code>Aspire.Hosting.Testing</code> spins
+      the real app graph with Postgres + Redis (Testcontainers) for ingestion,
+      engine, and BFF endpoint tests. External APIs (API-Football, NewsAPI,
+      Anthropic, Stripe) stubbed via recorded fixtures / WireMock.</li>
+    <li><strong>End-to-end</strong> — Playwright against the Aspire-run stack:
+      anonymous baseline read (P3), the refinement hook (P4), the purchase flow in
+      Stripe test mode (P5). These E2E specs are the per-phase acceptance gate.</li>
+    <li><strong>Non-functional</strong> — a load script for the cached baseline
+      path (P6) and the SSRF / prompt-injection suite (P6), both runnable in
+      CI.</li>
+  </ul>
+
+  <h3>Parallelization &amp; dependencies</h3>
+  <ul>
+    <li>Phase 1 (Ingestion) and Phase 2 (Gateway/Engine) run in parallel once the
+      Phase 0 schema is stable.</li>
+    <li>Phase 3 (Frontend) starts against a mocked BFF during Phase 2.</li>
+    <li>Phase 5 (Stripe) is independent — can begin once the Phase 4 tier model
+      exists.</li>
+    <li>Critical path: schema → ingestion → engine → baseline read → refinement →
+      billing.</li>
+  </ul>
+
+  <h3>Cut-line if slipping <span class="tag">drop in this order</span></h3>
+  <ol>
+    <li>Matchday pass — keep only the $5 World Cup pass.</li>
+    <li>PL / CL run-up coverage — World Cup fixtures only.</li>
+    <li>Citation polish (still functional, less refined).</li>
+    <li>Scaling headroom — accept slower group-stage simultaneous kickoffs.</li>
+  </ol>
+  <p><strong>Never cut:</strong> baseline prediction, the refinement delta, the
+  $5 WC pass, and the SSRF / prompt-injection defences.</p>
+
+  <h3>Key risks</h3>
+  <ul>
+    <li><strong>Group-stage concurrency</strong> — multiple simultaneous
+      kickoffs; the Redis baseline cache is the load shield and must be verified
+      under load before the tournament.</li>
+    <li><strong>LLM cost on the unlimited WC pass</strong> — fair-use cap plus
+      OTel cost alerting are mandatory, not optional.</li>
+  </ul>
+
+  <footer>
+    Football Prediction App — Design v0.3 (World Cup 2026) · Supersedes v0.1 docx.
+    Diagrams rendered via Mermaid (needs network on first load).
+  </footer>
+
+</div>
+<script>
+  (function(){
+    var ol = document.querySelector("nav.toc ol");
+    document.querySelectorAll("h2").forEach(function(h,i){
+      var id = "s" + (i+1);
+      h.id = id;
+      var c = h.cloneNode(true);
+      c.querySelectorAll(".tag").forEach(function(t){t.remove();});
+      var li = document.createElement("li");
+      var a = document.createElement("a");
+      a.href = "#" + id;
+      a.textContent = c.textContent.trim();
+      li.appendChild(a);
+      ol.appendChild(li);
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Azure Developer CLI (azd) config — deploy groundwork only.
+# The Aspire AppHost is the single service; azd provisions Azure Container Apps
+# for every resource modeled in AppHost.cs.
+#
+# NOT run yet (needs your Azure subscription + auth):
+#   azd auth login
+#   azd up                     # provisions + deploys to Azure Container Apps
+# Aspire-native alternative:
+#   aspire deploy
+#
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: wcpredictions
+services:
+  app:
+    language: dotnet
+    project: ./WcPredictions.AppHost/WcPredictions.AppHost.csproj
+    host: containerapp

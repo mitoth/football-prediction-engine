@@ -1,0 +1,25 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.3.2">
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\Bff\WcPredictions.Bff.csproj" />
+    <ProjectReference Include="..\src\PredictionEngine\WcPredictions.PredictionEngine.csproj" />
+    <ProjectReference Include="..\src\LlmGateway\WcPredictions.LlmGateway.csproj" />
+    <ProjectReference Include="..\src\Ingestion\WcPredictions.Ingestion.csproj" />
+    <ProjectReference Include="..\src\UrlFetcher\WcPredictions.UrlFetcher.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.3.3" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.3.2" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="13.3.2" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>88e40f9d-e9fc-447f-b956-2945be5524bd</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

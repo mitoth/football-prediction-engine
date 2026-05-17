@@ -1,0 +1,32 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+
+# Aspire
+.aspire/
+**/aspire-output/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+
+# OS / editor
+.idea/
+*.log
+Thumbs.db
+.DS_Store
