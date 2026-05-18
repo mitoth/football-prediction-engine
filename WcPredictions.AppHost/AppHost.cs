@@ -28,10 +28,14 @@ var clerkPublishableKey = builder.AddParameter("clerk-publishable-key", "", secr
 // real keys; integration tests stub the upstream APIs.
 var apiFootballKey = builder.AddParameter("api-football-key", "", secret: true);
 var newsApiKey = builder.AddParameter("news-api-key", "", secret: true);
+// Anthropic key for the LLM Gateway. Empty default → no prompt; the gateway
+// only fails when actually asked to predict without a real key (tests stub it).
+var anthropicKey = builder.AddParameter("anthropic-api-key", "", secret: true);
 
 // --- Services ---------------------------------------------------------------
 
-var llmGateway = builder.AddProject<Projects.WcPredictions_LlmGateway>("llm-gateway");
+var llmGateway = builder.AddProject<Projects.WcPredictions_LlmGateway>("llm-gateway")
+    .WithEnvironment("ANTHROPIC_API_KEY", anthropicKey);
 
 var urlFetcher = builder.AddProject<Projects.WcPredictions_UrlFetcher>("url-fetcher");
 

@@ -1,5 +1,4 @@
 <Project>
-
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <!-- Transitive pinning OFF: the net10 AppHost's Aspire deps need
@@ -7,31 +6,27 @@
          Centralizing direct references is what prevents the EF Core skew. -->
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
-
   <!-- Single source of truth for every NuGet version. Prevents the EF Core
        version-skew class of bug (Aspire Npgsql client pulled Relational 9.0.1
        while Data was built against 9.0.16). All EF Core packages move together. -->
   <ItemGroup>
     <!-- Aspire hosting (AppHost) -->
+    <PackageVersion Include="Anthropic" Version="12.21.0" />
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.3.3" />
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.3.3" />
     <PackageVersion Include="Aspire.Hosting.Redis" Version="13.3.3" />
-
     <!-- Aspire client integrations -->
     <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
-
+    <PackageVersion Include="Aspire.StackExchange.Redis.DistributedCaching" Version="9.0.0" />
     <!-- EF Core — keep all four on the same version -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.16" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.16" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.16" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-
     <!-- ASP.NET Core add-ons -->
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.16" />
-
     <!-- Generic host (workers) -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
-
     <!-- ServiceDefaults: resilience, discovery, OpenTelemetry -->
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.5.0" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.5.0" />
@@ -40,17 +35,16 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
-
     <!-- Phase 1: scheduling + ingestion -->
     <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.13.1" />
-
     <!-- Testing -->
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.1.0" />
+    <PackageVersion Include="Testcontainers.Redis" Version="4.1.0" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.10" />
     <PackageVersion Include="WireMock.Net" Version="1.6.7" />
   </ItemGroup>
-
 </Project>

@@ -9,9 +9,17 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" />
+    <PackageReference Include="Quartz.Extensions.Hosting" />
+    <!-- EF-skew rule: direct refs force the centrally-pinned 9.0.16 over the
+         Aspire Npgsql client's transitive 9.0.1. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ServiceDefaults\WcPredictions.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Data\WcPredictions.Data.csproj" />
   </ItemGroup>
 </Project>
