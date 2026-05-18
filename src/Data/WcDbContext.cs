@@ -26,6 +26,13 @@ public class WcDbContext(DbContextOptions<WcDbContext> options) : DbContext(opti
             e.HasIndex(x => x.ClerkUserId).IsUnique();
         });
 
+        // Provider-id unique indexes make ingestion upserts idempotent. Columns
+        // are nullable; Postgres allows multiple NULLs in a unique index, so
+        // manually-seeded rows without a provider id don't collide.
+        b.Entity<League>(e => e.HasIndex(x => x.ProviderLeagueId).IsUnique());
+        b.Entity<Team>(e => e.HasIndex(x => x.ProviderTeamId).IsUnique());
+        b.Entity<Article>(e => e.HasIndex(x => x.Url).IsUnique());
+
         b.Entity<UserLeague>(e =>
         {
             e.HasKey(x => new { x.UserId, x.LeagueId });
@@ -43,6 +50,7 @@ public class WcDbContext(DbContextOptions<WcDbContext> options) : DbContext(opti
                 .HasForeignKey(x => x.HomeTeamId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.AwayTeam).WithMany()
                 .HasForeignKey(x => x.AwayTeamId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.ProviderFixtureId).IsUnique();
             e.HasIndex(x => x.KickoffUtc);
         });
 

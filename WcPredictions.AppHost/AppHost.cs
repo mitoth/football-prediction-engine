@@ -22,6 +22,13 @@ var clerkDevSigningKey = builder.AddParameter(
 // Clerk frontend publishable key (empty in Phase 0 — shell renders without it).
 var clerkPublishableKey = builder.AddParameter("clerk-publishable-key", "", secret: false);
 
+// --- Ingestion API keys -----------------------------------------------------
+// Secret, empty default so `aspire start` doesn't prompt when running without
+// live keys. Ingestion degrades gracefully (logs, no data) until the user sets
+// real keys; integration tests stub the upstream APIs.
+var apiFootballKey = builder.AddParameter("api-football-key", "", secret: true);
+var newsApiKey = builder.AddParameter("news-api-key", "", secret: true);
+
 // --- Services ---------------------------------------------------------------
 
 var llmGateway = builder.AddProject<Projects.WcPredictions_LlmGateway>("llm-gateway");
@@ -37,6 +44,8 @@ var predictionEngine = builder.AddProject<Projects.WcPredictions_PredictionEngin
 
 var ingestion = builder.AddProject<Projects.WcPredictions_Ingestion>("ingestion")
     .WithReference(wcdb)
+    .WithEnvironment("ApiFootball__ApiKey", apiFootballKey)
+    .WithEnvironment("NewsApi__ApiKey", newsApiKey)
     .WaitFor(wcdb);
 
 var bff = builder.AddProject<Projects.WcPredictions_Bff>("bff")
