@@ -28,3 +28,16 @@ public sealed record PredictResponse(
     int PredAway,
     string Why,
     IReadOnlyList<string> Citations);
+
+// Refinement adds a classification of the user's note on top of a prediction.
+// Accepted=false → gibberish; Relevant=false → off-topic. The caller spends a
+// quota credit only when both are true (RejectReason is "" in that case).
+public sealed record RefineResponse(
+    bool Accepted,
+    bool Relevant,
+    string RejectReason,
+    OutcomeProbs OutcomeProbs,
+    int PredHome,
+    int PredAway,
+    string Why,
+    IReadOnlyList<string> Citations);

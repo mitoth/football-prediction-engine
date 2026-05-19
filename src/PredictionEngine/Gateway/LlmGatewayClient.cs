@@ -27,6 +27,17 @@ public sealed record PredictResponse(
     string Why,
     IReadOnlyList<string> Citations);
 
+// Refinement adds the accepted/relevant classification on top of a prediction.
+public sealed record RefineResponse(
+    bool Accepted,
+    bool Relevant,
+    string RejectReason,
+    OutcomeProbs OutcomeProbs,
+    int PredHome,
+    int PredAway,
+    string Why,
+    IReadOnlyList<string> Citations);
+
 public sealed class LlmGatewayClient(HttpClient http)
 {
     public async Task<PredictResponse> PredictAsync(PredictRequest req, CancellationToken ct)
@@ -34,6 +45,14 @@ public sealed class LlmGatewayClient(HttpClient http)
         var resp = await http.PostAsJsonAsync("/predict", req, ct);
         resp.EnsureSuccessStatusCode();
         return await resp.Content.ReadFromJsonAsync<PredictResponse>(ct)
+               ?? throw new InvalidOperationException("Gateway returned empty body");
+    }
+
+    public async Task<RefineResponse> RefineAsync(PredictRequest req, CancellationToken ct)
+    {
+        var resp = await http.PostAsJsonAsync("/refine", req, ct);
+        resp.EnsureSuccessStatusCode();
+        return await resp.Content.ReadFromJsonAsync<RefineResponse>(ct)
                ?? throw new InvalidOperationException("Gateway returned empty body");
     }
 }

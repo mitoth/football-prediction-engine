@@ -126,9 +126,17 @@ public class Refinement
     public string? InputText { get; set; }
     public string? InputUrl { get; set; }
     public string? ExtractedText { get; set; }
-    public string Status { get; set; } = null!; // rejected_gibberish|dead_url|off_topic|success
+    public string Status { get; set; } = null!; // rejected_gibberish|dead_url|off_topic|success|removed
     public bool QuotaCharged { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+
+    // Refined output, persisted so the refined card + chip survive across
+    // sessions without re-spending tokens. Set only when Status = success.
+    public string? RefinedProbs { get; set; }      // jsonb {home,draw,away}
+    public int? RefinedPredHome { get; set; }
+    public int? RefinedPredAway { get; set; }
+    public string? RefinedWhy { get; set; }
+    public string? RefinedCitations { get; set; }  // jsonb string[] of article ids
 
     public AppUser User { get; set; } = null!;
     public Match Match { get; set; } = null!;

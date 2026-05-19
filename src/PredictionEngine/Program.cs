@@ -4,7 +4,9 @@ using WcPredictions.PredictionEngine;
 using WcPredictions.PredictionEngine.Baseline;
 using WcPredictions.PredictionEngine.Gateway;
 
-var builder = Host.CreateApplicationBuilder(args);
+// WebApplication (not a bare worker) so the engine can expose POST /refine for
+// the BFF to orchestrate, while the scheduled Quartz baseline job still runs.
+var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
@@ -17,6 +19,7 @@ builder.Services.AddHttpClient<LlmGatewayClient>(c =>
     c.BaseAddress = new Uri("https+http://llm-gateway"));
 
 builder.Services.AddScoped<BaselineService>();
+builder.Services.AddScoped<RefinementService>();
 
 builder.Services.AddQuartz(q =>
 {
@@ -27,5 +30,24 @@ builder.Services.AddQuartz(q =>
 });
 builder.Services.AddQuartzHostedService(o => o.WaitForJobsToComplete = true);
 
-var host = builder.Build();
-host.Run();
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+
+app.MapGet("/", () => "WcPredictions Prediction Engine");
+
+// Compute-only: BFF has already verified auth + quota and URL-extracted the
+// note. Persistence of the Refinement row + snapshot is the BFF's job.
+app.MapPost("/refine", async (
+    RefineHttpRequest req, RefinementService svc, CancellationToken ct) =>
+{
+    var result = await svc.RefineAsync(req.MatchId, req.BaselineId, req.UserNote, ct);
+    return Results.Ok(result);
+});
+
+app.Run();
+
+public sealed record RefineHttpRequest(Guid MatchId, Guid BaselineId, string UserNote);
+
+// Exposed so the Phase 4 integration test can drive the engine in-process.
+public partial class Program;

@@ -14,6 +14,8 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="WireMock.Net" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     <!-- EF-skew rule: any project touching Data + the Aspire Npgsql client must
          pin EF Core + Relational directly to beat the transitive 9.0.1. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" />

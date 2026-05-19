@@ -47,5 +47,6 @@
     <PackageVersion Include="Testcontainers.Redis" Version="4.1.0" />
     <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.10" />
     <PackageVersion Include="WireMock.Net" Version="1.6.7" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.3.1" />
   </ItemGroup>
 </Project>

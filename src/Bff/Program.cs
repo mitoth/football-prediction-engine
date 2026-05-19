@@ -11,9 +11,21 @@ builder.AddClerkAuth();
 builder.AddNpgsqlDbContext<WcDbContext>("wcdb");
 builder.Services.AddHostedService<DbMigrator>();
 
+// Refinement orchestration: the per-request Clerk identity, the daily quota,
+// and typed clients to the sandboxed URL Fetcher + the Prediction Engine.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped(sp => new CurrentUser(
+    sp.GetRequiredService<IHttpContextAccessor>().HttpContext!.User,
+    sp.GetRequiredService<WcDbContext>()));
+builder.Services.AddScoped<QuotaService>();
+builder.Services.AddHttpClient<PredictionEngineClient>(c =>
+    c.BaseAddress = new Uri("https+http://prediction-engine"));
+builder.Services.AddHttpClient<UrlFetcherClient>(c =>
+    c.BaseAddress = new Uri("https+http://url-fetcher"));
+
 // The Vite SPA is a separate origin (Aspire assigns it its own port), so the
-// browser needs CORS to reach the BFF. Anonymous reads send no credentials,
-// so any-origin is safe here; tighten when authed endpoints land in Phase 4.
+// browser needs CORS to reach the BFF. Auth is a bearer JWT (not cookies), so
+// any-origin stays safe — no AllowCredentials, nothing rides ambient session.
 const string WebCors = "web";
 builder.Services.AddCors(o => o.AddPolicy(WebCors, p =>
     p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
@@ -30,6 +42,9 @@ app.MapGet("/", () => "WcPredictions BFF");
 
 // Phase 3: anonymous match list + match detail (baseline + citations).
 app.MapMatchEndpoints();
+
+// Phase 4: authed refinement hook (quota-gated POST, free PUT/DELETE, /me).
+app.MapRefineEndpoints();
 
 // Phase 0 acceptance endpoint: 200 with a valid Clerk JWT, 401 without.
 app.MapGet("/me", (ClaimsPrincipal user) =>

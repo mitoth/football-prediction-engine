@@ -79,3 +79,56 @@
 .snippet { color: var(--muted); font-size: 0.9rem; }
 
 .ver { color: var(--muted); font-size: 0.75rem; text-align: right; margin: 1rem 0 0; }
+
+/* --- Refinement (Phase 4) --- */
+.refine {
+  margin-top: 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.8rem;
+}
+.refine.greyed { opacity: 0.7; text-align: center; }
+.refine.greyed p { color: var(--muted); margin: 0 0 0.6rem; }
+.refine .quota { color: var(--muted); font-size: 0.85rem; margin: 0; }
+.refine .upgrade {
+  background: var(--accent-soft); color: var(--accent);
+  border-radius: 10px; padding: 0.7rem 0.9rem; margin: 0; font-weight: 600;
+}
+.chip {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  background: var(--accent-soft); color: var(--accent);
+  border-radius: 999px; padding: 0.4rem 0.8rem; font-size: 0.9rem;
+}
+.chip span { font-weight: 600; }
+.chip button {
+  border: none; background: transparent; color: var(--accent);
+  padding: 0.1rem 0.3rem; font-size: 0.82rem; text-decoration: underline;
+}
+.refine-note { color: var(--muted); margin: 0; font-size: 0.9rem; }
+
+.side-by-side {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;
+}
+.side-by-side .why { grid-column: 1 / -1; }
+.mini { border: 1px solid var(--line); border-radius: 12px; padding: 0.8rem; }
+.mini.refined { border-color: var(--accent); }
+.mini h4 { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em; }
+.mini-score { font-weight: 700; font-size: 1.2rem; margin: 0.5rem 0 0; text-align: center; }
+.mini-probs { display: grid; gap: 0.35rem; }
+.mini-prob { display: grid; grid-template-columns: 1.2rem 1fr 2.6rem; align-items: center; gap: 0.4rem; }
+.mini-prob > span:first-child { color: var(--muted); font-size: 0.8rem; }
+
+.refine-form { display: grid; gap: 0.5rem; }
+.refine-form .mode { display: flex; gap: 0.4rem; }
+.refine-form .mode button { font-size: 0.82rem; padding: 0.35rem 0.7rem; }
+.refine-form .mode button.on { border-color: var(--accent); color: var(--accent); }
+.refine-form textarea {
+  font: inherit; width: 100%; resize: vertical;
+  border: 1px solid var(--line); border-radius: 8px; padding: 0.6rem;
+}
+.refine-form textarea:focus { outline: none; border-color: var(--accent); }
+[data-testid="refine-submit"] { color: var(--accent); border-color: var(--accent); }

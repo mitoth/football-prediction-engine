@@ -1,4 +1,3 @@
-using System.Diagnostics.Metrics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Anthropic;
@@ -6,34 +5,22 @@ using Anthropic.Models.Messages;
 
 namespace WcPredictions.LlmGateway.Prediction;
 
-public sealed class ClaudePredictor(
+// Refinement twin of ClaudePredictor: same untrusted-input quarantine, prompt
+// cache, and citation enforcement, but the refinement schema/prompt (which add
+// the accepted/relevant classification). Cost counters are shared via the same
+// Meter so refinement spend shows up in the same dashboard.
+public sealed class ClaudeRefiner(
     AnthropicClient client,
     IConfiguration config,
-    ILogger<ClaudePredictor> log)
+    ILogger<ClaudeRefiner> log)
 {
-    public const string MeterName = "WcPredictions.LlmGateway";
-    private static readonly Meter Meter = new(MeterName);
-    private static readonly Counter<long> InputTokens = Meter.CreateCounter<long>("llm.tokens.input");
-    private static readonly Counter<long> OutputTokens = Meter.CreateCounter<long>("llm.tokens.output");
-    private static readonly Counter<long> CacheReadTokens = Meter.CreateCounter<long>("llm.tokens.cache_read");
-    private static readonly Counter<long> CacheWriteTokens = Meter.CreateCounter<long>("llm.tokens.cache_write");
-
-    // Shared so ClaudeRefiner's spend lands on the same counters/dashboard.
-    public static void RecordUsage(Usage usage)
-    {
-        InputTokens.Add(usage.InputTokens);
-        OutputTokens.Add(usage.OutputTokens);
-        CacheReadTokens.Add(usage.CacheReadInputTokens ?? 0);
-        CacheWriteTokens.Add(usage.CacheCreationInputTokens ?? 0);
-    }
-
     private static readonly JsonSerializerOptions Json = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
     };
 
-    public async Task<PredictResponse> PredictAsync(PredictRequest req, CancellationToken ct)
+    public async Task<RefineResponse> RefineAsync(PredictRequest req, CancellationToken ct)
     {
         var model = config["Anthropic:Model"] ?? "claude-opus-4-7";
 
@@ -41,10 +28,9 @@ public sealed class ClaudePredictor(
         {
             Model = model,
             MaxTokens = 16000,
-            // Single stable, cached system block (prompt-cache prefix).
             System = new List<TextBlockParam>
             {
-                new() { Text = PredictionPrompt.System, CacheControl = new CacheControlEphemeral() },
+                new() { Text = RefinementPrompt.System, CacheControl = new CacheControlEphemeral() },
             },
             Messages =
             [
@@ -64,7 +50,7 @@ public sealed class ClaudePredictor(
                 Effort = Effort.High,
                 Format = new JsonOutputFormat
                 {
-                    Schema = new Dictionary<string, JsonElement>(PredictionPrompt.Schema),
+                    Schema = new Dictionary<string, JsonElement>(RefinementPrompt.Schema),
                 },
             },
         };
@@ -72,9 +58,9 @@ public sealed class ClaudePredictor(
         Message response = await client.Messages.Create(parameters, cancellationToken: ct);
 
         var usage = response.Usage;
-        RecordUsage(usage);
+        ClaudePredictor.RecordUsage(usage);
         log.LogInformation(
-            "Claude prediction: in={In} out={Out} cacheRead={CR} cacheWrite={CW} model={Model}",
+            "Claude refinement: in={In} out={Out} cacheRead={CR} cacheWrite={CW} model={Model}",
             usage.InputTokens, usage.OutputTokens,
             usage.CacheReadInputTokens ?? 0, usage.CacheCreationInputTokens ?? 0, model);
 
@@ -84,17 +70,19 @@ public sealed class ClaudePredictor(
         var dto = JsonSerializer.Deserialize<Dto>(json, Json)
                   ?? throw new InvalidOperationException("Claude returned unparseable JSON");
 
-        // Defence in depth: the model is told to only cite supplied ids; enforce
-        // it here too so an invented id can never reach the caller.
         var allowed = req.Articles.Select(a => a.Id).ToHashSet();
         var citations = (dto.Citations ?? []).Where(allowed.Contains).Distinct().ToList();
 
-        return new PredictResponse(
+        return new RefineResponse(
+            dto.Accepted, dto.Relevant, dto.RejectReason ?? "",
             new OutcomeProbs(dto.OutcomeProbs.Home, dto.OutcomeProbs.Draw, dto.OutcomeProbs.Away),
             dto.PredHome, dto.PredAway, dto.Why, citations);
     }
 
     private sealed record Dto(
+        [property: JsonPropertyName("accepted")] bool Accepted,
+        [property: JsonPropertyName("relevant")] bool Relevant,
+        [property: JsonPropertyName("reject_reason")] string? RejectReason,
         [property: JsonPropertyName("outcome_probs")] ProbsDto OutcomeProbs,
         [property: JsonPropertyName("pred_home")] int PredHome,
         [property: JsonPropertyName("pred_away")] int PredAway,

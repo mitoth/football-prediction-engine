@@ -80,6 +80,8 @@ public class WcDbContext(DbContextOptions<WcDbContext> options) : DbContext(opti
 
         b.Entity<Refinement>(e =>
         {
+            e.Property(x => x.RefinedProbs).HasColumnType("jsonb");
+            e.Property(x => x.RefinedCitations).HasColumnType("jsonb");
             e.HasOne(x => x.User).WithMany(u => u.Refinements)
                 .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Match).WithMany()

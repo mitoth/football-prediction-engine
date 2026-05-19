@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getMatch, type MatchDetail as Detail } from '../api'
+import RefinePanel from '../components/RefinePanel'
 
 const pct = (p: number) => `${Math.round(p * 100)}%`
 
@@ -33,6 +34,7 @@ export default function MatchDetail() {
           Prediction not generated yet — check back closer to kickoff.
         </p>
       ) : (
+        <>
         <section className="baseline-card" data-testid="baseline-card">
           <div className="scoreline" data-testid="scoreline">
             {b.predHome}<span>–</span>{b.predAway}
@@ -80,6 +82,8 @@ export default function MatchDetail() {
 
           <p className="ver">Baseline v{b.version}</p>
         </section>
+        <RefinePanel matchId={match.id} baseline={b} />
+        </>
       )}
     </article>
   )
