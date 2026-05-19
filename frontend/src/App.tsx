@@ -1,30 +1,33 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react'
+import { Link, Route, Routes } from 'react-router-dom'
+import MatchList from './pages/MatchList'
+import MatchDetail from './pages/MatchDetail'
 import './App.css'
-
-const apiUrl = import.meta.env.VITE_API_URL as string | undefined
 
 export default function App({ clerkConfigured }: { clerkConfigured: boolean }) {
   return (
-    <main style={{ fontFamily: 'system-ui', maxWidth: 640, margin: '4rem auto', padding: '0 1rem' }}>
-      <h1>WC Predictions</h1>
-      <p>Phase 0 shell — World Cup 2026.</p>
-      <p>BFF API: <code>{apiUrl ?? '(not set)'}</code></p>
+    <div className="app">
+      <header className="topbar">
+        <Link to="/" className="brand">WC Predictions</Link>
+        <div className="auth">
+          {clerkConfigured ? (
+            <>
+              <SignedOut><SignInButton mode="modal" /></SignedOut>
+              <SignedIn><UserButton /></SignedIn>
+            </>
+          ) : (
+            // Phase 3 ships anonymous; sign-in arrives with the Clerk tenant (Phase 4).
+            <span className="auth-note">Browsing anonymously</span>
+          )}
+        </div>
+      </header>
 
-      {clerkConfigured ? (
-        <>
-          <SignedOut>
-            <SignInButton mode="modal" />
-          </SignedOut>
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
-        </>
-      ) : (
-        <p style={{ color: '#b45309' }}>
-          Clerk not configured (no publishable key yet — Phase 0). Sign-in wires
-          up once the Clerk tenant exists.
-        </p>
-      )}
-    </main>
+      <main>
+        <Routes>
+          <Route path="/" element={<MatchList />} />
+          <Route path="/match/:id" element={<MatchDetail />} />
+        </Routes>
+      </main>
+    </div>
   )
 }

@@ -1,42 +1,81 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* Mobile-first: the design's front door is a phone, anonymous, 10-sec read. */
+.app { max-width: 640px; margin: 0 auto; padding: 0 1rem 3rem; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem;
+}
+.brand { font-weight: 700; font-size: 1.15rem; color: var(--ink); }
+.auth-note { color: var(--muted); font-size: 0.85rem; }
+
+.state { color: var(--muted); padding: 2rem 0; text-align: center; }
+
+/* --- Match list --- */
+.match-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+.match-row {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+}
+.match-row:active { transform: scale(0.995); }
+.league { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.teams { font-weight: 600; font-size: 1.05rem; }
+.teams em { color: var(--muted); font-style: normal; font-weight: 400; }
+.meta { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); font-size: 0.85rem; }
+.badge {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* --- Match detail --- */
+.detail header { margin: 0.5rem 0 1rem; }
+.detail h2 { margin: 0.2rem 0; font-size: 1.4rem; }
+.detail h2 em { color: var(--muted); font-style: normal; font-weight: 400; }
+.back { display: inline-block; margin: 0.5rem 0; color: var(--muted); }
+
+.baseline-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.25rem;
+}
+.scoreline {
+  font-size: 2.4rem;
+  font-weight: 700;
   text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
 }
+.scoreline span { color: var(--muted); font-weight: 400; }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
+.probs { display: grid; gap: 0.5rem; margin: 1.1rem 0; }
+.prob { display: grid; grid-template-columns: 3.2rem 1fr 3rem; align-items: center; gap: 0.6rem; }
+.prob-label { color: var(--muted); font-size: 0.85rem; }
+.prob-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.bar { background: var(--line); border-radius: 999px; height: 0.55rem; overflow: hidden; }
+.fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+.why { color: var(--ink); line-height: 1.55; margin: 1rem 0; }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
+.cite-toggle { width: 100%; color: var(--accent); border-color: var(--accent-soft); }
 
-.card {
-  padding: 2em;
-}
+.citations { list-style: none; padding: 0; margin: 0.9rem 0 0; display: grid; gap: 0.85rem; }
+.citations li { display: grid; gap: 0.2rem; padding-top: 0.85rem; border-top: 1px solid var(--line); }
+.citations a { font-weight: 600; }
+.outlet { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.snippet { color: var(--muted); font-size: 0.9rem; }
 
-.read-the-docs {
-  color: #888;
-}
+.ver { color: var(--muted); font-size: 0.75rem; text-align: right; margin: 1rem 0 0; }

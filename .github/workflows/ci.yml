@@ -8,7 +8,7 @@ jobs:
   build-dotnet:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # AppHost targets net10.0; services target net9.0 — install both SDKs.
       - name: Setup .NET
@@ -24,8 +24,8 @@ jobs:
       - name: Build
         run: dotnet build WcPredictions.sln --no-restore -c Release
 
-      # No test projects yet (added per the §16 testing strategy in later phases).
-      # `dotnet test` is a safe no-op until then.
+      # Integration tests (Ingestion, PredictionEngine, Bff) use Testcontainers;
+      # the ubuntu runner ships a working Docker daemon.
       - name: Test
         run: dotnet test WcPredictions.sln --no-build -c Release --verbosity quiet
 
@@ -35,11 +35,10 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      # Node 20 LTS in CI (local dev is on 18; Vite 5 supports both).
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -50,3 +49,10 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # Phase 3 smoke: built SPA on `vite preview`, BFF stubbed via page.route.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E smoke
+        run: npm run e2e
