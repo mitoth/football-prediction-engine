@@ -12,25 +12,33 @@ var wcdb = postgres.AddDatabase("wcdb");
 var cache = builder.AddRedis("cache")
     .WithLifetime(ContainerLifetime.Persistent);
 
+// Parameter values come from configuration (`Parameters:<name>` — AppHost
+// user-secrets in dev / env in prod), with an empty fallback so `aspire start`
+// never prompts when a key is unset. NOTE: `AddParameter(name, "<literal>")`
+// pins the value and ignores configuration — that overload is only correct for
+// a true constant (the dev signing key). Everything user-supplied must read
+// configuration here, or the secret store is silently never consulted.
+string Cfg(string name, string fallback = "") =>
+    builder.Configuration[$"Parameters:{name}"] ?? fallback;
+
 // --- Clerk auth config ------------------------------------------------------
-// Authority is the Clerk issuer (set per-environment once the tenant exists).
-// The dev signing key is Development-only: it lets Phase 0 tests mint a valid
-// JWT against the BFF /me endpoint with no real Clerk tenant. Not a real secret.
-var clerkAuthority = builder.AddParameter("clerk-authority", "", secret: false);
+// Authority is the Clerk issuer. The dev signing key is Development-only: it
+// lets tests mint a valid JWT against the BFF with no real Clerk tenant — a
+// genuine constant, so the literal-value overload is correct for it alone.
+var clerkAuthority = builder.AddParameter("clerk-authority", Cfg("clerk-authority"), secret: false);
 var clerkDevSigningKey = builder.AddParameter(
     "clerk-dev-signing-key", "phase0-dev-only-signing-key-change-me!", secret: false);
-// Clerk frontend publishable key (empty in Phase 0 — shell renders without it).
-var clerkPublishableKey = builder.AddParameter("clerk-publishable-key", "", secret: false);
+var clerkPublishableKey = builder.AddParameter("clerk-publishable-key", Cfg("clerk-publishable-key"), secret: false);
+// Clerk backend secret key. Unused until Phase 5 (the Stripe webhook writes the
+// new tier into Clerk publicMetadata via the Clerk backend API).
+var clerkSecretKey = builder.AddParameter("clerk-secret-key", Cfg("clerk-secret-key"), secret: true);
 
-// --- Ingestion API keys -----------------------------------------------------
-// Secret, empty default so `aspire start` doesn't prompt when running without
-// live keys. Ingestion degrades gracefully (logs, no data) until the user sets
-// real keys; integration tests stub the upstream APIs.
-var apiFootballKey = builder.AddParameter("api-football-key", "", secret: true);
-var newsApiKey = builder.AddParameter("news-api-key", "", secret: true);
-// Anthropic key for the LLM Gateway. Empty default → no prompt; the gateway
-// only fails when actually asked to predict without a real key (tests stub it).
-var anthropicKey = builder.AddParameter("anthropic-api-key", "", secret: true);
+// --- Ingestion / model API keys ---------------------------------------------
+// Empty fallback ⇒ no prompt when unset; services degrade gracefully and the
+// integration tests stub the upstreams.
+var apiFootballKey = builder.AddParameter("api-football-key", Cfg("api-football-key"), secret: true);
+var newsApiKey = builder.AddParameter("news-api-key", Cfg("news-api-key"), secret: true);
+var anthropicKey = builder.AddParameter("anthropic-api-key", Cfg("anthropic-api-key"), secret: true);
 
 // --- Services ---------------------------------------------------------------
 
@@ -59,6 +67,7 @@ var bff = builder.AddProject<Projects.WcPredictions_Bff>("bff")
     .WithReference(urlFetcher)
     .WithEnvironment("Clerk__Authority", clerkAuthority)
     .WithEnvironment("Clerk__DevSigningKey", clerkDevSigningKey)
+    .WithEnvironment("Clerk__SecretKey", clerkSecretKey)
     .WaitFor(wcdb)
     .WaitFor(predictionEngine);
 
