@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Quartz.Extensions.Hosting" />
+    <PackageReference Include="System.ServiceModel.Syndication" />
     <!-- Required whenever the Aspire Npgsql EF client is used alongside the Data
          project: the client pulls Relational 9.0.1 transitively; these direct
          refs force the centrally-pinned 9.0.16 to match Data's compiled version. -->

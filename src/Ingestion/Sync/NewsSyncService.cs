@@ -5,12 +5,13 @@ using WcPredictions.Ingestion.News;
 
 namespace WcPredictions.Ingestion.Sync;
 
-// Fetches news per configured query and upserts metadata-only Article rows,
-// deduplicated by URL. Idempotent.
+// Pulls each curated football RSS feed and upserts metadata-only Article rows,
+// deduplicated by URL (also unique-indexed). Idempotent: re-running adds only
+// genuinely new items.
 public sealed class NewsSyncService(
-    NewsApiClient api,
+    FootballRssClient rss,
     WcDbContext db,
-    IOptions<NewsApiOptions> options,
+    IOptions<RssOptions> options,
     ILogger<NewsSyncService> log)
 {
     public async Task SyncAsync(CancellationToken ct)
@@ -20,12 +21,12 @@ public sealed class NewsSyncService(
         var known = new HashSet<string>(seen);
         var added = 0;
 
-        foreach (var query in opt.Queries)
+        foreach (var feed in opt.Feeds)
         {
-            var articles = await api.SearchAsync(query, opt.PageSize, ct);
+            var articles = await rss.FetchAsync(feed, opt.MaxItemsPerFeed, ct);
             foreach (var a in articles)
             {
-                if (!known.Add(a.Url)) continue; // dedupe by URL (also unique-indexed)
+                if (!known.Add(a.Url)) continue; // dedupe by URL
                 db.Articles.Add(new Article
                 {
                     Id = Guid.NewGuid(),
@@ -38,7 +39,7 @@ public sealed class NewsSyncService(
                 });
                 added++;
             }
-            log.LogInformation("News query '{Query}': {Count} fetched", query, articles.Count);
+            log.LogInformation("RSS feed '{Outlet}': {Count} items", feed.Outlet, articles.Count);
         }
 
         await db.SaveChangesAsync(ct);
