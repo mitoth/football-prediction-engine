@@ -126,11 +126,11 @@
   <code>{ outcome_probs, score, why, citations[] }</code> back. The same path
   serves baseline and refinement; refinement just adds the user's input to the
   context.</p>
-  <p><strong>Data sources.</strong> A <strong>curated set of football RSS feeds</strong>
-  (BBC Sport, Guardian Football, Sky Sports, ESPN Soccer) feeds articles —
-  football-focused by construction, free, no key, no rate limit. We store only
-  headline, outlet, URL, and a short snippet, never full article text
-  (copyright); the citation links out for the full read.
+  <p><strong>Data sources.</strong> <strong>NewsData.io</strong> (sports
+  category, commercial-licensed paid plan) is the news layer — publisher RSS
+  feeds were ruled out because most outlet RSS terms forbid commercial reuse.
+  We store only headline, outlet, URL, and a short snippet, never full article
+  text (copyright); the citation links out for the full read.
   <strong>API-Football</strong> is the single sports-data provider for
   fixtures, form, lineups, and final results, and it covers the World Cup.
   For national-team matches the engine uses recent international form and the
@@ -256,7 +256,7 @@ graph TD
   BILL["11 · Billing · Stripe<br/>matchday + WC tournament pass"] --> BFF
   BILL -->|webhook sets tier| CLERK
   BFF --> AN["12 · Analytics / Observability<br/>events · A/B · cost · accuracy"]
-  ING --> NEWS(("Curated football RSS"))
+  ING --> NEWS(("NewsData.io (sports)"))
   ING --> SPORTS(("Sports-data provider"))
   </pre>
   </div>
@@ -533,8 +533,8 @@ sequenceDiagram
       (§7)</li>
     <li><strong>Leagues</strong> — World Cup is the launch target; Premier League
       + Champions League covered as run-up. No other competitions in v1. (§2)</li>
-    <li><strong>Vendors</strong> — API-Football (sports data) + curated
-      football RSS (BBC Sport, Guardian, Sky Sports, ESPN). (§5)</li>
+    <li><strong>Vendors</strong> — API-Football (sports data) + NewsData.io
+      (news, sports category, paid commercial-licensed plan). (§5)</li>
     <li><strong>Refinement style</strong> — one-shot; chat-style deferred.</li>
     <li><strong>Community</strong> — leaderboards / fan stream deferred past v1
       (moderation + the personal-refinement guarantee).</li>
@@ -679,7 +679,7 @@ flowchart TD
     <tr><td>5</td><td>LLM Gateway</td><td>.NET service → Anthropic API, structured
       JSON output, cost logged via OTel.</td></tr>
     <tr><td>6</td><td>Ingestion Workers</td><td>.NET hosted services; HttpClient →
-      API-Football + curated football RSS feeds.</td></tr>
+      API-Football + NewsData.io (sports category).</td></tr>
     <tr><td>7</td><td>URL Fetcher</td><td>Isolated .NET service, SSRF-guarded.</td></tr>
     <tr><td>8</td><td>Datastore</td><td>Postgres + EF Core (Npgsql); Aspire PG
       integration.</td></tr>
@@ -702,9 +702,9 @@ flowchart TD
       in BFF + Clerk React SDK wired in the frontend shell. Vite app registered
       as an Aspire resource. CI + deploy target (Azure Container Apps).</td></tr>
     <tr><td><strong>1 · Ingestion</strong></td><td>3–7</td><td>API-Football
-      client (World Cup + PL + CL leagues/teams/fixtures). Curated football RSS
-      client (fetch + rank + URL-dedupe, metadata only). Scheduler triggers
-      (T-24h, T-1h). Seed WC fixtures.</td></tr>
+      client (World Cup + PL + CL leagues/teams/fixtures). NewsData.io client
+      (sports category, fetch + rank + URL-dedupe, metadata only). Scheduler
+      triggers (T-24h, T-1h). Seed WC fixtures.</td></tr>
     <tr><td><strong>2 · Prediction core</strong></td><td>6–11</td><td>LLM Gateway
       (prompt template, JSON schema, untrusted-input wrapper, cost log, retry).
       Prediction Engine (context assembly → gateway → validate → baseline +
@@ -765,8 +765,8 @@ flowchart TD
       rules, entitlement/tier resolution, SSRF guard); Vitest for React.</li>
     <li><strong>Integration</strong> — <code>Aspire.Hosting.Testing</code> spins
       the real app graph with Postgres + Redis (Testcontainers) for ingestion,
-      engine, and BFF endpoint tests. External APIs (API-Football, the curated
-      RSS feeds, Anthropic, Stripe) stubbed via recorded fixtures / WireMock.</li>
+      engine, and BFF endpoint tests. External APIs (API-Football, NewsData.io,
+      Anthropic, Stripe) stubbed via recorded fixtures / WireMock.</li>
     <li><strong>End-to-end</strong> — Playwright against the Aspire-run stack:
       anonymous baseline read (P3), the refinement hook (P4), the purchase flow in
       Stripe test mode (P5). These E2E specs are the per-phase acceptance gate.</li>

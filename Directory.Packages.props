@@ -37,7 +37,6 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
     <!-- Phase 1: scheduling + ingestion -->
     <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.13.1" />
-    <PackageVersion Include="System.ServiceModel.Syndication" Version="9.0.10" />
     <!-- Testing -->
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
