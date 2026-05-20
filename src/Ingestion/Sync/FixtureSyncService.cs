@@ -15,6 +15,16 @@ public sealed class FixtureSyncService(
 {
     public async Task SyncAsync(CancellationToken ct)
     {
+        // Load once: cross-league overlap (e.g. Man City in EPL + UCL) means we
+        // must reuse Team entities across iterations to avoid duplicate
+        // ProviderTeamId inserts on a single SaveChanges.
+        var byProvider = await db.Teams
+            .Where(t => t.ProviderTeamId != null)
+            .ToDictionaryAsync(t => t.ProviderTeamId!, ct);
+        var existing = await db.Matches
+            .Where(m => m.ProviderFixtureId != null)
+            .ToDictionaryAsync(m => m.ProviderFixtureId!, ct);
+
         foreach (var ls in options.Value.Leagues)
         {
             var info = await api.GetLeagueAsync(ls.LeagueId, ls.Season, ct);
@@ -29,10 +39,6 @@ public sealed class FixtureSyncService(
             league.CompetitionType =
                 teams.Count > 0 && teams.Count(t => t.National) * 2 >= teams.Count ? "national" : "club";
 
-            // Upsert teams; keep a provider-id -> entity map for fixture linking.
-            var byProvider = await db.Teams
-                .Where(t => t.ProviderTeamId != null)
-                .ToDictionaryAsync(t => t.ProviderTeamId!, ct);
             foreach (var t in teams)
             {
                 var key = t.Id.ToString();
@@ -47,9 +53,6 @@ public sealed class FixtureSyncService(
             }
 
             var fixtures = await api.GetFixturesAsync(ls.LeagueId, ls.Season, ct);
-            var existing = await db.Matches
-                .Where(m => m.ProviderFixtureId != null)
-                .ToDictionaryAsync(m => m.ProviderFixtureId!, ct);
             foreach (var f in fixtures)
             {
                 if (!byProvider.TryGetValue(f.HomeTeamId.ToString(), out var home) ||
