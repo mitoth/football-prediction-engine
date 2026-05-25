@@ -243,6 +243,123 @@
   line-height: 1.45;
   text-align: center;
 }
+
+.citations-credit {
+  margin: 0.9rem 0 0;
+  padding: 0.6rem 0.8rem;
+  background: rgba(0,0,0,0.18);
+  border-radius: 8px;
+  color: var(--chalk-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.citations-credit a { color: var(--accent); }
+
+.app-footer {
+  margin-top: 2.5rem;
+  padding: 1.2rem 0;
+  border-top: 1px dashed var(--line-chalk);
+  color: var(--chalk-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.app-footer a { color: var(--chalk); text-decoration: underline; }
+.app-footer .credits { margin: 0 0 0.4rem; }
+.app-footer .legal { margin: 0; opacity: 0.75; }
+.app-footer .legal-links {
+  margin: 0.6rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+}
+.app-footer .legal-links a { color: var(--chalk-muted); }
+.app-footer .legal-links a:hover { color: var(--accent); }
+
+/* --- Legal pages (Privacy / ToS) --- */
+.legal-page {
+  background: var(--felt-deep);
+  border: 1px solid var(--line-chalk);
+  border-radius: 16px;
+  padding: 1.5rem 1.6rem 2rem;
+  color: var(--chalk);
+  line-height: 1.65;
+  font-size: 0.95rem;
+}
+.legal-header { margin: 0.5rem 0 1.4rem; padding-bottom: 0.8rem; border-bottom: 1px dashed var(--line-chalk); }
+.legal-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.7rem;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+}
+.legal-updated {
+  margin: 0.3rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--chalk-muted);
+  text-transform: uppercase;
+}
+.legal-body h2 {
+  margin: 1.5rem 0 0.4rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--chalk);
+}
+.legal-body p, .legal-body li { color: var(--chalk); }
+.legal-body ul { padding-left: 1.2rem; }
+.legal-body li { margin: 0.3rem 0; }
+.legal-body a { color: var(--accent); text-decoration: underline; }
+.legal-body code {
+  font-family: var(--font-mono);
+  background: rgba(0,0,0,0.25);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.legal-note {
+  margin-top: 1.5rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--coral-soft);
+  border-left: 3px solid var(--coral);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--chalk);
+}
+
+/* --- Cookie consent banner --- */
+.cookie-banner {
+  position: fixed;
+  left: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--felt-deep);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  font-size: 0.85rem;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+  z-index: 10;
+}
+.cookie-banner p { margin: 0; flex: 1; color: var(--chalk); line-height: 1.45; }
+.cookie-banner a { color: var(--accent); text-decoration: underline; }
+.cookie-banner button {
+  background: var(--accent);
+  color: var(--felt-deep);
+  border: 1px solid var(--accent);
+  font-weight: 700;
+  padding: 0.45rem 0.9rem;
+}
+.cookie-banner button:hover { background: transparent; color: var(--accent); }
 .scoreline {
   font-family: var(--font-display);
   font-size: 3rem;

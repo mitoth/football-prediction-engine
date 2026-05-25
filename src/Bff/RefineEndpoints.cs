@@ -59,7 +59,7 @@ public static class RefineEndpoints
 
             return await RunAsync(id, input, user, charge: true, remaining,
                 me, quota, engine, db, ct);
-        }).RequireAuthorization();
+        }).RequireAuthorization().RequireRateLimiting("refine-per-ip");
 
         // Edit the active chip → free re-run on the same credit.
         app.MapPut("/matches/{id:guid}/refine", async (
@@ -79,7 +79,7 @@ public static class RefineEndpoints
             var remaining = await quota.RemainingAsync(user, me.Tier, ct);
             return await RunAsync(id, input, user, charge: false, remaining,
                 me, quota, engine, db, ct);
-        }).RequireAuthorization();
+        }).RequireAuthorization().RequireRateLimiting("refine-per-ip");
 
         // Remove the chip → revert to the baseline (tombstone row, free).
         app.MapDelete("/matches/{id:guid}/refine", async (

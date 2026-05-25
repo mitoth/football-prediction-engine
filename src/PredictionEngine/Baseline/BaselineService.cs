@@ -85,6 +85,12 @@ public sealed class BaselineService(
         var citedArticleIds = resp.Citations
             .Where(sentIds.ContainsKey).Select(c => sentIds[c]).Distinct().ToList();
 
+        // The "what the model read" surface (design §3 — "this site read 8
+        // articles for me") shows every article fed to the prompt, not only
+        // the ones Claude explicitly returned. Persist all inputs so the user
+        // can audit the context even when the model doesn't cite anything.
+        var readArticleIds = articles.Select(a => a.Id).ToList();
+
         var nextVersion = ((await db.Baselines
             .Where(b => b.MatchId == matchId)
             .Select(b => (int?)b.Version).MaxAsync(ct)) ?? 0) + 1;
@@ -104,7 +110,7 @@ public sealed class BaselineService(
             CreatedAt = DateTimeOffset.UtcNow,
         };
         db.Baselines.Add(baseline);
-        foreach (var articleId in citedArticleIds)
+        foreach (var articleId in readArticleIds)
             db.BaselineCitations.Add(new BaselineCitation { BaselineId = baseline.Id, ArticleId = articleId });
 
         db.PredictionSnapshots.Add(new PredictionSnapshot
@@ -125,12 +131,12 @@ public sealed class BaselineService(
         var dto = new BaselineDto(
             baseline.Id, nextVersion, h, d, a2,
             resp.PredHome, resp.PredAway, resp.Why,
-            citedArticleIds.Select(x => x.ToString()).ToList());
+            readArticleIds.Select(x => x.ToString()).ToList());
         await cache.SetStringAsync(CacheKey(matchId), JsonSerializer.Serialize(dto), CacheTtl, ct);
 
         log.LogInformation(
-            "Baseline v{Version} built for {MatchId} (trigger={Trigger}, {Cites} citations)",
-            nextVersion, matchId, trigger, citedArticleIds.Count);
+            "Baseline v{Version} built for {MatchId} (trigger={Trigger}, {Read} articles read, {Cites} cited)",
+            nextVersion, matchId, trigger, readArticleIds.Count, citedArticleIds.Count);
         return dto;
     }
 }

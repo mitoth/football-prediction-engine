@@ -5,6 +5,15 @@ import RefinePanel from '../components/RefinePanel'
 
 const pct = (p: number) => `${Math.round(p * 100)}%`
 
+// Cap displayed snippet length — fair-use guard on top of NewsData's licensed
+// excerpt. The full text NewsData hands us is normally short already, but a
+// hard ceiling means no individual outlet ever sees more than 250 chars from
+// us; the user clicks through to the publisher URL for the rest.
+const SNIPPET_MAX = 250
+function trim(s: string) {
+  return s.length <= SNIPPET_MAX ? s : `${s.slice(0, SNIPPET_MAX).trimEnd()}…`
+}
+
 export default function MatchDetail() {
   const { id } = useParams<{ id: string }>()
   const [match, setMatch] = useState<Detail | null>(null)
@@ -74,21 +83,32 @@ export default function MatchDetail() {
                 aria-expanded={showCitations}
                 onClick={() => setShowCitations((s) => !s)}
               >
-                {showCitations ? 'Hide sources' : `Show sources (${b.citations.length})`}
+                {showCitations
+                  ? 'Hide what the model read'
+                  : `What the model read · ${b.citations.length} article${b.citations.length === 1 ? '' : 's'}`}
               </button>
 
               {showCitations && (
-                <ul className="citations" data-testid="citations">
-                  {b.citations.map((c) => (
-                    <li key={c.articleId} data-testid="citation">
-                      <a href={c.url} target="_blank" rel="noreferrer noopener">
-                        {c.headline}
-                      </a>
-                      <span className="outlet">{c.outlet}</span>
-                      <span className="snippet">{c.snippet}</span>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="citations" data-testid="citations">
+                    {b.citations.map((c) => (
+                      <li key={c.articleId} data-testid="citation">
+                        <a href={c.url} target="_blank" rel="noreferrer noopener">
+                          {c.headline}
+                        </a>
+                        <span className="outlet">{c.outlet}</span>
+                        <span className="snippet">{trim(c.snippet)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="citations-credit" data-testid="newsdata-credit">
+                    News headlines and snippets via{' '}
+                    <a href="https://newsdata.io" target="_blank" rel="noreferrer noopener">
+                      NewsData.io
+                    </a>
+                    . Tap a headline to read the full article on the publisher's site.
+                  </p>
+                </>
               )}
             </>
           )}
