@@ -93,19 +93,37 @@ azd env new matchforecast-prod
 
 ### 4. Stage secrets in the azd env
 
+Parameter names match the kebab-case keys passed to `AddParameter(...)` in
+`WcPredictions.AppHost/AppHost.cs`. azd uppercases them in env vars but
+`azd env set` accepts the literal name:
+
 ```pwsh
-azd env set ApiFootball__ApiKey "<paste your API-Football Pro key>"
-azd env set News__ApiKey         "<paste your NewsData.io paid key>"
-azd env set Anthropic__ApiKey    "<paste your Anthropic prod key>"
-azd env set Clerk__Authority     "https://<your-clerk-tenant>.clerk.accounts.dev"
-azd env set Clerk__PublishableKey "<pk_live_... or pk_test_...>"
-azd env set Clerk__SecretKey     "<sk_live_... or sk_test_...>"
+azd env set api-football-key      "<paste your API-Football Pro key>"
+azd env set news-data-key         "<paste your NewsData.io paid key>"
+azd env set anthropic-api-key     "<paste your Anthropic prod key>"
+azd env set clerk-authority       "https://<your-clerk-tenant>.clerk.accounts.dev"
+azd env set clerk-publishable-key "<pk_live_... or pk_test_...>"
+azd env set clerk-secret-key      "<sk_live_... or sk_test_...>"
+```
+
+Reuse the dev keys for the first deploy — fine for soft launch. **Swap the
+Clerk dev tenant for a prod tenant before Stripe / paid traffic** (the dev
+tenant shows a "Development mode" banner on the Clerk login UI).
+
+To read what you already have in user-secrets:
+
+```pwsh
+dotnet user-secrets list --project WcPredictions.AppHost
 ```
 
 These map to the `AddParameter("api-football-key", ...)` etc. resources in
 AppHost.cs and are written into Container App secret slots at provision
 time. Key Vault wrapping is a Phase 6 hardening item — for v1 they live as
 Container App secret refs which is acceptable.
+
+If you skip the `azd env set` step, `azd up` prompts for each parameter
+interactively on first run and stores the value in the azd env for next
+time.
 
 ### 5. Provision + deploy
 
