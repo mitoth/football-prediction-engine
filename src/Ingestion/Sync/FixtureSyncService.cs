@@ -53,6 +53,14 @@ public sealed class FixtureSyncService(
             }
 
             var fixtures = await api.GetFixturesAsync(ls.LeagueId, ls.Season, ct);
+
+            // For group-format tournaments (e.g. WC), API-Football's fixture
+            // round is "Group Stage - 1/2/3" — the matchweek, not the group
+            // letter. The /standings endpoint carries the group label per team,
+            // so we fetch it once per league and rewrite Stage to
+            // "Group A · Stage 1" when a fixture sits in the group phase.
+            var groupByTeam = await api.GetTeamGroupsAsync(ls.LeagueId, ls.Season, ct);
+
             foreach (var f in fixtures)
             {
                 if (!byProvider.TryGetValue(f.HomeTeamId.ToString(), out var home) ||
@@ -74,6 +82,7 @@ public sealed class FixtureSyncService(
                 match.AwayTeam = away;
                 match.KickoffUtc = f.KickoffUtc;
                 match.Status = f.Status;
+                match.Stage = ComposeStage(f.Stage, f.HomeTeamId, groupByTeam);
             }
 
             log.LogInformation(
@@ -82,5 +91,20 @@ public sealed class FixtureSyncService(
         }
 
         await db.SaveChangesAsync(ct);
+    }
+
+    // "Group Stage - 1" + team in Group A → "Group A · Stage 1". For non-group
+    // rounds (knockouts, league phase, regular season), or when no group is
+    // known, the original round label is preserved unchanged.
+    private static string? ComposeStage(string? rawStage, int homeTeamId, IReadOnlyDictionary<int, string> groupByTeam)
+    {
+        if (string.IsNullOrWhiteSpace(rawStage)) return rawStage;
+        if (!rawStage.StartsWith("Group Stage", StringComparison.OrdinalIgnoreCase)) return rawStage;
+        if (!groupByTeam.TryGetValue(homeTeamId, out var group)) return rawStage;
+
+        // "Group Stage - 1" → "Stage 1"; "Group Stage" → ""
+        var dash = rawStage.IndexOf('-');
+        var matchweek = dash > 0 ? rawStage[(dash + 1)..].Trim() : "";
+        return string.IsNullOrEmpty(matchweek) ? group : $"{group} · Stage {matchweek}";
     }
 }

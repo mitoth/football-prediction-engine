@@ -5,7 +5,6 @@
     <ProjectReference Include="..\src\PredictionEngine\WcPredictions.PredictionEngine.csproj" />
     <ProjectReference Include="..\src\LlmGateway\WcPredictions.LlmGateway.csproj" />
     <ProjectReference Include="..\src\Ingestion\WcPredictions.Ingestion.csproj" />
-    <ProjectReference Include="..\src\UrlFetcher\WcPredictions.UrlFetcher.csproj" />
   </ItemGroup>
 
   <ItemGroup>

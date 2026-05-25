@@ -5,13 +5,15 @@ using WcPredictions.Data;
 namespace WcPredictions.Bff;
 
 // The product hook. All authed. The BFF owns the business rules: verify the
-// Clerk JWT + tier, enforce the daily quota, URL-fetch via the sandboxed
-// fetcher, call the engine for the prediction, persist the Refinement +
-// snapshot. Only a successful+relevant refinement spends a credit; gibberish /
-// off-topic / dead URL never do. One active chip per match per user; editing or
-// removing it is free.
+// Clerk JWT + tier, enforce the daily quota, call the engine for the
+// prediction, persist the Refinement + snapshot. Only a successful+relevant
+// refinement spends a credit; gibberish / off-topic never do. One active chip
+// per match per user; editing or removing it is free.
+//
+// URL refinements are disabled: fetching arbitrary publisher content for
+// commercial reuse creates legal exposure. Only free-text notes are accepted.
 
-public sealed record RefineInput(string InputType, string? Text, string? Url); // text | url
+public sealed record RefineInput(string InputType, string? Text, string? Url); // text only
 
 public sealed record ChipView(string InputType, string? Text, string? Url, string Status);
 
@@ -43,9 +45,12 @@ public static class RefineEndpoints
         // New chip → costs one credit (only if it lands as success).
         app.MapPost("/matches/{id:guid}/refine", async (
             Guid id, RefineInput input, CurrentUser me, QuotaService quota,
-            UrlFetcherClient fetcher, PredictionEngineClient engine,
-            WcDbContext db, CancellationToken ct) =>
+            PredictionEngineClient engine, WcDbContext db, CancellationToken ct) =>
         {
+            if (IsUrl(input))
+                return Results.BadRequest(new { error = "url_disabled",
+                    message = "URL refinements are disabled. Send a free-text note instead." });
+
             var user = await me.ResolveAsync(ct);
             var remaining = await quota.RemainingAsync(user, me.Tier, ct);
             if (remaining <= 0)
@@ -53,15 +58,18 @@ public static class RefineEndpoints
                     (await ActiveAsync(db, user.Id, id, ct)).chip, null), statusCode: 429);
 
             return await RunAsync(id, input, user, charge: true, remaining,
-                me, quota, fetcher, engine, db, ct);
+                me, quota, engine, db, ct);
         }).RequireAuthorization();
 
         // Edit the active chip → free re-run on the same credit.
         app.MapPut("/matches/{id:guid}/refine", async (
             Guid id, RefineInput input, CurrentUser me, QuotaService quota,
-            UrlFetcherClient fetcher, PredictionEngineClient engine,
-            WcDbContext db, CancellationToken ct) =>
+            PredictionEngineClient engine, WcDbContext db, CancellationToken ct) =>
         {
+            if (IsUrl(input))
+                return Results.BadRequest(new { error = "url_disabled",
+                    message = "URL refinements are disabled. Send a free-text note instead." });
+
             var user = await me.ResolveAsync(ct);
             var latest = await LatestAsync(db, user.Id, id, ct);
             if (latest is null || latest.Status == "removed")
@@ -70,7 +78,7 @@ public static class RefineEndpoints
 
             var remaining = await quota.RemainingAsync(user, me.Tier, ct);
             return await RunAsync(id, input, user, charge: false, remaining,
-                me, quota, fetcher, engine, db, ct);
+                me, quota, engine, db, ct);
         }).RequireAuthorization();
 
         // Remove the chip → revert to the baseline (tombstone row, free).
@@ -99,10 +107,14 @@ public static class RefineEndpoints
         }).RequireAuthorization();
     }
 
+    private static bool IsUrl(RefineInput input) =>
+        string.Equals(input.InputType, "url", StringComparison.OrdinalIgnoreCase)
+        || !string.IsNullOrWhiteSpace(input.Url);
+
     private static async Task<IResult> RunAsync(
         Guid matchId, RefineInput input, AppUser user, bool charge, int remaining,
-        CurrentUser me, QuotaService quota, UrlFetcherClient fetcher,
-        PredictionEngineClient engine, WcDbContext db, CancellationToken ct)
+        CurrentUser me, QuotaService quota, PredictionEngineClient engine,
+        WcDbContext db, CancellationToken ct)
     {
         var baseline = await db.Baselines
             .Where(b => b.MatchId == matchId)
@@ -112,36 +124,19 @@ public static class RefineEndpoints
             return Results.Json(new RefineResponse("no_baseline", false, remaining, null, null),
                 statusCode: 409);
 
-        var isUrl = string.Equals(input.InputType, "url", StringComparison.OrdinalIgnoreCase);
-        string? extracted = null;
-
-        if (isUrl)
-        {
-            var fetch = await fetcher.FetchAsync(input.Url ?? "", ct);
-            if (fetch.Status != "ok")
-            {
-                // Dead/blocked link never costs a credit.
-                await SaveRefinement(db, user, matchId, baseline.Id, input,
-                    extracted: null, status: "dead_url", charged: false, refined: null, ct);
-                return Results.Ok(new RefineResponse("dead_url", false, remaining,
-                    new ChipView(input.InputType, input.Text, input.Url, "dead_url"), null));
-            }
-            extracted = fetch.Text;
-        }
-
-        var note = isUrl ? extracted! : input.Text ?? "";
+        var note = input.Text ?? "";
         var result = await engine.RefineAsync(matchId, baseline.Id, note, ct);
 
         if (result.Status != "success")
         {
             await SaveRefinement(db, user, matchId, baseline.Id, input,
-                extracted, result.Status, charged: false, refined: null, ct);
+                extracted: null, result.Status, charged: false, refined: null, ct);
             return Results.Ok(new RefineResponse(result.Status, false, remaining,
                 new ChipView(input.InputType, input.Text, input.Url, result.Status), null));
         }
 
         await SaveRefinement(db, user, matchId, baseline.Id, input,
-            extracted, "success", charged: charge, refined: result, ct);
+            extracted: null, "success", charged: charge, refined: result, ct);
         if (charge) await quota.ConsumeAsync(user, ct);
 
         var refined = await ToRefinedView(db,

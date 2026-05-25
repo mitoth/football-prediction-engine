@@ -12,7 +12,9 @@ builder.AddNpgsqlDbContext<WcDbContext>("wcdb");
 builder.Services.AddHostedService<DbMigrator>();
 
 // Refinement orchestration: the per-request Clerk identity, the daily quota,
-// and typed clients to the sandboxed URL Fetcher + the Prediction Engine.
+// and a typed client to the Prediction Engine. URL refinements were removed
+// (§4, §5 of the design doc — publisher commercial-reuse exposure), so the
+// previously sandboxed URL Fetcher service and its client are gone.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped(sp => new CurrentUser(
     sp.GetRequiredService<IHttpContextAccessor>().HttpContext!.User,
@@ -20,8 +22,6 @@ builder.Services.AddScoped(sp => new CurrentUser(
 builder.Services.AddScoped<QuotaService>();
 builder.Services.AddHttpClient<PredictionEngineClient>(c =>
     c.BaseAddress = new Uri("https+http://prediction-engine"));
-builder.Services.AddHttpClient<UrlFetcherClient>(c =>
-    c.BaseAddress = new Uri("https+http://url-fetcher"));
 
 // The Vite SPA is a separate origin (Aspire assigns it its own port), so the
 // browser needs CORS to reach the BFF. Auth is a bearer JWT (not cookies), so

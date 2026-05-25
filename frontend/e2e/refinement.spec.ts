@@ -68,7 +68,7 @@ test('signed-in: refine → side-by-side + changed why; edit/remove; gibberish; 
   // Authed (E2E token) → refine form is live, not the greyed sign-in.
   const panel = page.getByTestId('refine-panel')
   await expect(panel).toBeVisible()
-  await expect(page.getByTestId('quota-counter')).toContainText('3 of 3')
+  await expect(page.getByTestId('quota-counter')).toContainText('0 / 3 used')
 
   // 1. Successful text refinement → side-by-side + changed why + chip + quota 2.
   await page.getByTestId('refine-input').fill('keeper injured')
@@ -77,14 +77,14 @@ test('signed-in: refine → side-by-side + changed why; edit/remove; gibberish; 
   await expect(page.getByTestId('baseline-mini')).toContainText('55%')
   await expect(page.getByTestId('refined-why')).toContainText('Refined:')
   await expect(page.getByTestId('chip')).toContainText('keeper injured')
-  await expect(page.getByTestId('quota-counter')).toContainText('2 of 3')
+  await expect(page.getByTestId('quota-counter')).toContainText('1 / 3 used')
 
   // 2. Edit the chip → free re-run (PUT), quota unchanged at 2.
   await page.getByTestId('chip-edit').click()
   await page.getByTestId('refine-input').fill('keeper definitely out')
   await page.getByTestId('refine-submit').click()
   await expect(page.getByTestId('refined-card')).toBeVisible()
-  await expect(page.getByTestId('quota-counter')).toContainText('2 of 3')
+  await expect(page.getByTestId('quota-counter')).toContainText('1 / 3 used')
 
   // 3. Remove → chip gone, form back.
   await page.getByTestId('chip-remove').click()
@@ -97,7 +97,7 @@ test('signed-in: refine → side-by-side + changed why; edit/remove; gibberish; 
   await page.getByTestId('refine-submit').click()
   await expect(page.getByTestId('refine-status')).toContainText('no credit used')
   await expect(page.getByTestId('refined-card')).toHaveCount(0)
-  await expect(page.getByTestId('quota-counter')).toContainText('2 of 3')
+  await expect(page.getByTestId('quota-counter')).toContainText('1 / 3 used')
   await page.getByTestId('chip-remove').click()
 
   // 5. Quota wall → upgrade teaser.

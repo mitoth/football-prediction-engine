@@ -57,6 +57,10 @@ public class Match
     public DateTimeOffset KickoffUtc { get; set; }
     public string Status { get; set; } = null!;
     public string? ProviderFixtureId { get; set; }
+    // Competition stage / round as reported by the provider (e.g. "Group Stage - 1",
+    // "Round of 16", "Quarter-finals", "Regular Season - 12"). Used to sub-group the
+    // match list under a league within a kickoff day.
+    public string? Stage { get; set; }
 
     public League League { get; set; } = null!;
     public Team HomeTeam { get; set; } = null!;

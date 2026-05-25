@@ -25,8 +25,16 @@ export default function MatchDetail() {
     <article className="detail" data-testid="match-detail">
       <Link to="/" className="back">← All matches</Link>
       <header>
-        <span className="league">{match.league}</span>
+        <span className="league">
+          {match.league}{match.stage && <> · <em className="stage">{match.stage}</em></>}
+        </span>
         <h2>{match.homeTeam} <em>vs</em> {match.awayTeam}</h2>
+        <p className="kickoff" data-testid="kickoff">
+          Kickoff {new Date(match.kickoffUtc).toLocaleString(undefined, {
+            weekday: 'short', day: 'numeric', month: 'short',
+            hour: '2-digit', minute: '2-digit',
+          })}
+        </p>
       </header>
 
       {!b ? (
@@ -36,10 +44,12 @@ export default function MatchDetail() {
       ) : (
         <>
         <section className="baseline-card" data-testid="baseline-card">
-          <div className="scoreline" data-testid="scoreline">
+          <p className="card-eyebrow">Predicted final score · not the actual result</p>
+          <div className="scoreline" data-testid="scoreline" aria-label="Predicted final score">
             {b.predHome}<span>–</span>{b.predAway}
           </div>
 
+          <p className="probs-label">Predicted outcome</p>
           <div className="probs" data-testid="probs">
             {([
               ['Home', b.home, 'home'],
@@ -54,35 +64,42 @@ export default function MatchDetail() {
             ))}
           </div>
 
-          <p className="why" data-testid="why">{b.why}</p>
+          <p className="why" data-testid="why"><strong>Why we predict this:</strong> {b.why}</p>
 
-          <button
-            className="cite-toggle"
-            data-testid="citations-toggle"
-            aria-expanded={showCitations}
-            onClick={() => setShowCitations((s) => !s)}
-          >
-            {showCitations ? 'Hide sources' : `Show sources (${b.citations.length})`}
-          </button>
+          {b.citations.length > 0 && (
+            <>
+              <button
+                className="cite-toggle"
+                data-testid="citations-toggle"
+                aria-expanded={showCitations}
+                onClick={() => setShowCitations((s) => !s)}
+              >
+                {showCitations ? 'Hide sources' : `Show sources (${b.citations.length})`}
+              </button>
 
-          {showCitations && (
-            <ul className="citations" data-testid="citations">
-              {b.citations.length === 0 && <li className="state">No sources cited.</li>}
-              {b.citations.map((c) => (
-                <li key={c.articleId} data-testid="citation">
-                  <a href={c.url} target="_blank" rel="noreferrer noopener">
-                    {c.headline}
-                  </a>
-                  <span className="outlet">{c.outlet}</span>
-                  <span className="snippet">{c.snippet}</span>
-                </li>
-              ))}
-            </ul>
+              {showCitations && (
+                <ul className="citations" data-testid="citations">
+                  {b.citations.map((c) => (
+                    <li key={c.articleId} data-testid="citation">
+                      <a href={c.url} target="_blank" rel="noreferrer noopener">
+                        {c.headline}
+                      </a>
+                      <span className="outlet">{c.outlet}</span>
+                      <span className="snippet">{c.snippet}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
 
-          <p className="ver">Baseline v{b.version}</p>
+          <p className="ver">Baseline v{b.version} · AI prediction by Claude</p>
         </section>
         <RefinePanel matchId={match.id} baseline={b} />
+        <p className="disclaimer" data-testid="disclaimer">
+          All numbers above are model predictions, not the real result.
+          For entertainment — not betting advice.
+        </p>
         </>
       )}
     </article>

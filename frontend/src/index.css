@@ -1,15 +1,31 @@
+/* MatchForecast · V4 tactics-board visual identity.
+   Green felt + chalk type + one yellow accent. User context = cream paper note.
+   Refined predictions = coral chalk so the delta from baseline reads inline. */
+
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --felt: #15402b;            /* tactics-board page background */
+  --felt-deep: #0f2e1f;       /* card / inset background */
+  --line-chalk: #2a5942;      /* faint chalk gridline */
+  --chalk: #f5f1e8;           /* primary text — chalk white */
+  --chalk-muted: #b5b09e;     /* secondary text */
+  --accent: #e9c34d;          /* one yellow accent — headlines, "ready" badge */
+  --accent-soft: #3b4a2b;     /* inset behind accent */
+  --coral: #ff7361;           /* refined prediction chalk */
+  --coral-soft: #4a2823;
+  --paper: #fffdf7;           /* cream "note pinned to board" — user chip */
+  --paper-ink: #1d1b16;       /* ink on the paper note */
+
+  /* Inter for body (legible); Caveat reserved for the brand wordmark only;
+     JetBrains Mono for numbers and labels. */
+  --font-chalk: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-brand: 'Caveat', 'Inter', cursive;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  font-family: var(--font-chalk);
   line-height: 1.5;
-  --bg: #f6f7f9;
-  --card: #ffffff;
-  --ink: #1c2330;
-  --muted: #69748a;
-  --line: #e4e8ee;
-  --accent: #2f6fed;
-  --accent-soft: #e8f0fe;
-  color: var(--ink);
-  background: var(--bg);
+  color: var(--chalk);
+  background: var(--felt);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -18,6 +34,11 @@
 body {
   margin: 0;
   min-height: 100vh;
+  /* subtle felt texture — repeating diagonal noise, very low contrast */
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255,255,255,0.03), transparent 60%),
+    radial-gradient(circle at 80% 90%, rgba(0,0,0,0.18), transparent 55%),
+    var(--felt);
 }
 
 a { color: var(--accent); text-decoration: none; }
@@ -26,8 +47,12 @@ button {
   font: inherit;
   cursor: pointer;
   border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--card);
+  border: 1px solid var(--line-chalk);
+  background: transparent;
+  color: var(--chalk);
   padding: 0.55rem 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
 }
-button:hover { border-color: var(--accent); }
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }

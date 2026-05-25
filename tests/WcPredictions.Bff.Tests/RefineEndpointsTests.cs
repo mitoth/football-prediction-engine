@@ -19,17 +19,17 @@ using WireMock.Server;
 namespace WcPredictions.Bff.Tests;
 
 // §16 Phase 4 exit (backend): anonymous refine is 401; a free user gets 3
-// successful refinements then the 4th is blocked; gibberish and a dead URL
-// cost no credit; editing the chip is a free re-run; removing it reverts.
-// Real BFF via WebApplicationFactory + Testcontainers Postgres; the engine and
-// URL fetcher are WireMock; the Clerk JWT is minted with the dev signing key.
+// successful refinements then the 4th is blocked; gibberish costs no credit;
+// editing the chip is a free re-run; removing it reverts; URL input is
+// rejected with 400 (URL refinements removed for legal reasons, §4/§5).
+// Real BFF via WebApplicationFactory + Testcontainers Postgres; the engine is
+// WireMock; the Clerk JWT is minted with the dev signing key.
 public class RefineEndpointsTests : IAsyncLifetime
 {
     private const string DevKey = "phase0-dev-only-signing-key-change-me!";
     private readonly PostgreSqlContainer _pg =
         new PostgreSqlBuilder().WithImage("postgres:16").Build();
     private WireMockServer _engine = null!;
-    private WireMockServer _fetcher = null!;
     private WebApplicationFactory<Program> _factory = null!;
     private static readonly JsonSerializerOptions J = new(JsonSerializerDefaults.Web);
 
@@ -39,8 +39,6 @@ public class RefineEndpointsTests : IAsyncLifetime
     {
         await _pg.StartAsync();
         _engine = WireMockServer.Start();
-        _fetcher = WireMockServer.Start();
-        StubFetcher("ok", "Extracted article text about the match.");
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
@@ -49,10 +47,9 @@ public class RefineEndpointsTests : IAsyncLifetime
             b.UseSetting("Clerk:DevSigningKey", DevKey);
             b.ConfigureServices(s =>
             {
-                // Point the typed clients at WireMock (overrides the
+                // Point the engine client at WireMock (overrides the
                 // service-discovery base address registered in Program.cs).
                 s.AddHttpClient<PredictionEngineClient>(c => c.BaseAddress = new Uri(_engine.Url!));
-                s.AddHttpClient<UrlFetcherClient>(c => c.BaseAddress = new Uri(_fetcher.Url!));
             });
         });
 
@@ -63,7 +60,6 @@ public class RefineEndpointsTests : IAsyncLifetime
     {
         await _factory.DisposeAsync();
         _engine.Stop();
-        _fetcher.Stop();
         await _pg.DisposeAsync();
     }
 
@@ -143,13 +139,6 @@ public class RefineEndpointsTests : IAsyncLifetime
             }));
     }
 
-    private void StubFetcher(string status, string? text)
-    {
-        _fetcher.Reset();
-        _fetcher.Given(Request.Create().WithPath("/fetch").UsingPost())
-            .RespondWith(Response.Create().WithBodyAsJson(new { status, text }));
-    }
-
     private async Task<(HttpStatusCode code, JsonElement body)> Send(
         HttpClient c, HttpMethod m, object? payload)
     {
@@ -194,12 +183,11 @@ public class RefineEndpointsTests : IAsyncLifetime
         Assert.False(r2.body.GetProperty("applied").GetBoolean());
         Assert.Equal(2, r2.body.GetProperty("quotaRemaining").GetInt32());
 
-        // 5. Dead URL → not applied, NO credit (engine never even called).
-        StubFetcher("dead_url", null);
+        // 5. URL refinements are disabled (legal: no publisher fetching).
+        //    The BFF rejects them outright with 400 — no engine call, no credit.
         var r3 = await Send(c, HttpMethod.Post, url);
-        Assert.Equal("dead_url", r3.body.GetProperty("status").GetString());
-        Assert.Equal(2, r3.body.GetProperty("quotaRemaining").GetInt32());
-        StubFetcher("ok", "text");
+        Assert.Equal(HttpStatusCode.BadRequest, r3.code);
+        Assert.Equal("url_disabled", r3.body.GetProperty("error").GetString());
 
         // 6. Two more successes exhaust the free quota (2→1→0).
         StubEngine("success");

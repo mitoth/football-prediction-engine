@@ -45,10 +45,27 @@ public sealed class BaselineService(
             .SingleOrDefaultAsync(m => m.Id == matchId, ct)
             ?? throw new InvalidOperationException($"Match {matchId} not found");
 
-        var articles = await db.Articles
+        // Pick articles that mention either team in the headline or snippet.
+        // Generic "football OR soccer" feed dominates the global Article table —
+        // without this filter, Claude gets unrelated news and cites nothing.
+        // Falls back to the newest articles if no team-specific hit exists.
+        var home = match.HomeTeam.Name;
+        var away = match.AwayTeam.Name;
+        var relevant = await db.Articles
+            .Where(a =>
+                EF.Functions.ILike(a.Headline, $"%{home}%") ||
+                EF.Functions.ILike(a.Headline, $"%{away}%") ||
+                EF.Functions.ILike(a.Snippet,  $"%{home}%") ||
+                EF.Functions.ILike(a.Snippet,  $"%{away}%"))
             .OrderByDescending(a => a.FetchedAt)
             .Take(ArticleContextSize)
             .ToListAsync(ct);
+        var articles = relevant.Count > 0
+            ? relevant
+            : await db.Articles
+                .OrderByDescending(a => a.FetchedAt)
+                .Take(ArticleContextSize)
+                .ToListAsync(ct);
 
         var req = new PredictRequest(
             match.HomeTeam.Name, match.AwayTeam.Name, match.League.Name,

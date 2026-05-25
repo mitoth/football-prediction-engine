@@ -1,41 +1,141 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getMatches, type MatchListItem } from '../api'
 
-function kickoff(iso: string) {
+function timeOnly(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
-    weekday: 'short', day: 'numeric', month: 'short',
     hour: '2-digit', minute: '2-digit',
   })
 }
 
+// "2026-06-14" — stable group key
+function dayKey(iso: string) {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function dayLabel(iso: string) {
+  const d = new Date(iso)
+  const today = new Date()
+  const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1)
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  if (sameDay(d, today)) return 'Today'
+  if (sameDay(d, tomorrow)) return 'Tomorrow'
+  return d.toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
+// Day → competition → stage → matches. Three nesting levels so the user can
+// see at a glance which competition + round a fixture sits in.
+type StageGroup = { stage: string | null; items: MatchListItem[] }
+type LeagueGroup = { league: string; stages: StageGroup[]; count: number }
+type DayGroup   = { key: string; label: string; leagues: LeagueGroup[]; count: number }
+
+function groupMatches(matches: MatchListItem[]): DayGroup[] {
+  const sorted = [...matches].sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc))
+  const days: DayGroup[] = []
+  for (const m of sorted) {
+    const dKey = dayKey(m.kickoffUtc)
+    let day = days[days.length - 1]
+    if (!day || day.key !== dKey) {
+      day = { key: dKey, label: dayLabel(m.kickoffUtc), leagues: [], count: 0 }
+      days.push(day)
+    }
+    let lg = day.leagues.find((l) => l.league === m.league)
+    if (!lg) {
+      lg = { league: m.league, stages: [], count: 0 }
+      day.leagues.push(lg)
+    }
+    let sg = lg.stages.find((s) => s.stage === (m.stage ?? null))
+    if (!sg) {
+      sg = { stage: m.stage ?? null, items: [] }
+      lg.stages.push(sg)
+    }
+    sg.items.push(m)
+    lg.count += 1
+    day.count += 1
+  }
+  return days
+}
+
+// Default: only the next 7 days of fixtures. Pressing "Show next week" adds
+// 7 more days each time — the list opens narrow and the user pulls more in.
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
 export default function MatchList() {
   const [matches, setMatches] = useState<MatchListItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [weeks, setWeeks] = useState(1)
 
   useEffect(() => {
     getMatches().then(setMatches).catch((e) => setError(String(e)))
   }, [])
 
+  // Slice the upcoming fixtures to whatever the user has chosen to see.
+  const horizonIso = useMemo(() => new Date(Date.now() + weeks * WEEK_MS).toISOString(), [weeks])
+  const visible = useMemo(
+    () => matches ? matches.filter((m) => m.kickoffUtc < horizonIso) : null,
+    [matches, horizonIso])
+  const remaining = matches && visible ? matches.length - visible.length : 0
+
+  const days = useMemo(() => visible ? groupMatches(visible) : null, [visible])
+
   if (error) return <p className="state" data-testid="error">Couldn’t load matches: {error}</p>
-  if (!matches) return <p className="state" data-testid="loading">Loading matches…</p>
+  if (!matches || !visible || !days) return <p className="state" data-testid="loading">Loading matches…</p>
   if (matches.length === 0)
     return <p className="state" data-testid="empty">No upcoming matches yet.</p>
+  if (visible.length === 0)
+    return <p className="state" data-testid="empty">No matches in the next {weeks} {weeks === 1 ? 'week' : 'weeks'}.</p>
 
   return (
-    <ul className="match-list" data-testid="match-list">
-      {matches.map((m) => (
-        <li key={m.id}>
-          <Link to={`/match/${m.id}`} className="match-row" data-testid="match-row">
-            <span className="league">{m.league}</span>
-            <span className="teams">{m.homeTeam} <em>vs</em> {m.awayTeam}</span>
-            <span className="meta">
-              <time>{kickoff(m.kickoffUtc)}</time>
-              {m.hasBaseline && <span className="badge">Prediction ready</span>}
-            </span>
-          </Link>
-        </li>
+    <div className="match-groups" data-testid="match-list">
+      {days.map((d) => (
+        <section key={d.key} className="match-day" data-testid="match-day">
+          <h3 className="match-day-label" data-testid="match-day-label">
+            <span>{d.label}</span>
+            <span className="match-day-count">{d.count} {d.count === 1 ? 'match' : 'matches'}</span>
+          </h3>
+
+          {d.leagues.map((lg) => (
+            <div key={lg.league} className="match-league" data-testid="match-league">
+              <h4 className="match-league-label">
+                <span>{lg.league}</span>
+                <span className="match-league-count">{lg.count}</span>
+              </h4>
+
+              {lg.stages.map((sg) => (
+                <div key={sg.stage ?? '_'} className="match-stage" data-testid="match-stage">
+                  {sg.stage && (
+                    <p className="match-stage-label">{sg.stage}</p>
+                  )}
+                  <ul className="match-list">
+                    {sg.items.map((m) => (
+                      <li key={m.id}>
+                        <Link to={`/match/${m.id}`} className="match-row" data-testid="match-row">
+                          <span className="teams">{m.homeTeam} <em>vs</em> {m.awayTeam}</span>
+                          <span className="meta">
+                            <time>{timeOnly(m.kickoffUtc)}</time>
+                            {m.hasBaseline && <span className="badge">Prediction ready</span>}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ))}
+        </section>
       ))}
-    </ul>
+
+      {remaining > 0 && (
+        <button
+          className="show-more"
+          data-testid="show-more"
+          onClick={() => setWeeks((w) => w + 1)}
+        >
+          Show next week <span className="show-more-rem">· {remaining} more {remaining === 1 ? 'match' : 'matches'} ahead</span>
+        </button>
+      )}
+    </div>
   )
 }

@@ -6,6 +6,7 @@ const apiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/
 export interface MatchListItem {
   id: string
   league: string
+  stage: string | null
   homeTeam: string
   awayTeam: string
   kickoffUtc: string
@@ -35,6 +36,7 @@ export interface BaselineView {
 export interface MatchDetail {
   id: string
   league: string
+  stage: string | null
   homeTeam: string
   awayTeam: string
   kickoffUtc: string
@@ -63,7 +65,8 @@ export interface RefineResponse {
   status: string; applied: boolean; quotaRemaining: number
   chip: Chip | null; refined: Refined | null
 }
-export interface RefineInput { inputType: 'text' | 'url'; text?: string; url?: string }
+// URL refinements are disabled (legal: no fetching publisher content). Text only.
+export interface RefineInput { inputType: 'text'; text: string }
 
 type Token = string | null
 

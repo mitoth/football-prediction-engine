@@ -9,7 +9,7 @@ namespace WcPredictions.Bff;
 // from Postgres — no cross-service HTTP, no Anthropic dependency in the BFF.
 
 public sealed record MatchListItem(
-    Guid Id, string League, string HomeTeam, string AwayTeam,
+    Guid Id, string League, string? Stage, string HomeTeam, string AwayTeam,
     DateTimeOffset KickoffUtc, string Status, bool HasBaseline);
 
 public sealed record CitationView(
@@ -20,7 +20,7 @@ public sealed record BaselineView(
     int PredHome, int PredAway, string Why, IReadOnlyList<CitationView> Citations);
 
 public sealed record MatchDetail(
-    Guid Id, string League, string HomeTeam, string AwayTeam,
+    Guid Id, string League, string? Stage, string HomeTeam, string AwayTeam,
     DateTimeOffset KickoffUtc, string Status, BaselineView? Baseline);
 
 public static class MatchEndpoints
@@ -36,7 +36,7 @@ public static class MatchEndpoints
                 .Where(m => m.KickoffUtc >= now)
                 .OrderBy(m => m.KickoffUtc)
                 .Select(m => new MatchListItem(
-                    m.Id, m.League.Name, m.HomeTeam.Name, m.AwayTeam.Name,
+                    m.Id, m.League.Name, m.Stage, m.HomeTeam.Name, m.AwayTeam.Name,
                     m.KickoffUtc, m.Status, m.Baselines.Any()))
                 .ToListAsync(ct);
             return Results.Ok(items);
@@ -51,6 +51,7 @@ public static class MatchEndpoints
                 {
                     x.Id,
                     League = x.League.Name,
+                    x.Stage,
                     Home = x.HomeTeam.Name,
                     Away = x.AwayTeam.Name,
                     x.KickoffUtc,
@@ -90,7 +91,7 @@ public static class MatchEndpoints
             }
 
             return Results.Ok(new MatchDetail(
-                m.Id, m.League, m.Home, m.Away, m.KickoffUtc, m.Status, view));
+                m.Id, m.League, m.Stage, m.Home, m.Away, m.KickoffUtc, m.Status, view));
         });
     }
 }

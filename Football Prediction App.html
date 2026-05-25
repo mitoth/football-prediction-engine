@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Football Prediction · App Flow</title>
+<meta name="viewport" content="width=1400">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #f0eee9; }
+  body { font-family: 'Patrick Hand', cursive; color: #1d1b16; }
+  .intro h1 {
+    font-family: 'Caveat', cursive; font-weight: 700;
+    font-size: 38px; line-height: 1.05; margin: 0 0 6px;
+  }
+  .intro h2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 2px; font-weight: 700;
+    margin: 14px 0 4px; color: #6b6657;
+  }
+  .intro p { font-size: 16px; line-height: 1.4; margin: 4px 0; }
+  .intro .pill {
+    display: inline-block; padding: 2px 10px;
+    border: 1.5px solid #1d1b16; border-radius: 999px; margin-right: 4px; margin-bottom: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+  }
+  .intro .accent {
+    font-family: 'Caveat', cursive; font-size: 20px; color: #15402b; margin-top: 12px;
+  }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+
+<body>
+<div id="root"></div>
+
+<!-- Framework & primitives -->
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="common.jsx"></script>
+
+<!-- Data & shared chrome -->
+<script type="text/babel" src="screens/data.jsx"></script>
+<script type="text/babel" src="screens/chrome.jsx"></script>
+
+<!-- Screens -->
+<script type="text/babel" src="screens/onboarding.jsx"></script>
+<script type="text/babel" src="screens/today.jsx"></script>
+<script type="text/babel" src="screens/refine.jsx"></script>
+<script type="text/babel" src="screens/citations.jsx"></script>
+
+<!-- Match Detail variants (V4 is in-flow; V1/V2/V3 are kept as side options) -->
+<script type="text/babel" src="v1-stickerbook.jsx"></script>
+<script type="text/babel" src="v2-programme.jsx"></script>
+<script type="text/babel" src="v3-confidence.jsx"></script>
+<script type="text/babel" src="v4-tactics.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+function PhoneArt({ children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: '100%', height: '100%', padding: 8, boxSizing: 'border-box' }}>
+      <IOSDevice width={388} height={940}>
+        {children}
+      </IOSDevice>
+    </div>
+  );
+}
+
+function Intro() {
+  return (
+    <div className="intro" data-screen-label="Intro · App Flow">
+      <h1>chalkpicks <span style={{ color: '#15402b' }}>·</span> app flow</h1>
+      <p style={{ color: '#6b6657' }}>
+        10 screens of the football prediction app in the V4 tactics-board direction.
+        Read flows left → right. Each row is one user task.
+      </p>
+      <h2>FLOWS IN THIS DOC</h2>
+      <p>
+        <span className="pill">ONBOARDING ×3</span>
+        <span className="pill">TODAY</span>
+        <span className="pill">MATCH DETAIL</span>
+        <span className="pill">REFINE ×3</span>
+        <span className="pill">CITATIONS ×2</span>
+      </p>
+      <h2>METAPHOR</h2>
+      <p>
+        Manager's tactics board — green felt, chalk, one yellow accent.
+        The user's added context is a cream paper note pinned to the board.
+        Refined predictions are coral chalk (drift from baseline visible inline).
+      </p>
+      <h2>ALSO IN THIS PROJECT</h2>
+      <p>The earlier <em>Match Detail Wireframes</em> file holds V1–V3 as alternative directions for the detail screen — kept for reference.</p>
+      <p className="accent">↓ scroll · pinch to zoom · click any phone to focus it</p>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="intro" title="App flow · V4 Tactics Board"
+                 subtitle="chalkpicks · 10 screens · static mockups">
+        <DCArtboard id="readme" label="README" width={620} height={500}
+                    style={{ background: '#fffdf7', padding: 28,
+                             boxShadow: '0 6px 16px rgba(0,0,0,0.06)' }}>
+          <Intro/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="onboarding" title="1 · Onboarding"
+                 subtitle="welcome → favourites → how it works">
+        <DCArtboard id="onb-welcome" label="1.1 · welcome" width={448} height={1000}>
+          <PhoneArt><ScreenOnbWelcome/></PhoneArt>
+        </DCArtboard>
+        <DCArtboard id="onb-teams" label="1.2 · favourites" width={448} height={1000}>
+          <PhoneArt><ScreenOnbTeams/></PhoneArt>
+        </DCArtboard>
+        <DCArtboard id="onb-budget" label="1.3 · 3 / day" width={448} height={1000}>
+          <PhoneArt><ScreenOnbBudget/></PhoneArt>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="browse" title="2 · Browse & match detail"
+                 subtitle="today's matchweek → open one match">
+        <DCArtboard id="today" label="2.1 · today" width={448} height={1000}>
+          <PhoneArt><ScreenToday/></PhoneArt>
+        </DCArtboard>
+        <DCArtboard id="match" label="2.2 · match detail (V4)" width={448} height={1000}>
+          <PhoneArt><VariantTactics/></PhoneArt>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="refine" title="3 · Refine flow"
+                 subtitle="add a chip → result · 1 / 3 used today">
+        <DCArtboard id="refine-cat" label="3.1 · what did we miss?" width={448} height={1000}>
+          <PhoneArt><ScreenRefineCategory/></PhoneArt>
+        </DCArtboard>
+        <DCArtboard id="refine-compose" label="3.2 · compose note" width={448} height={1000}>
+          <PhoneArt><ScreenRefineCompose/></PhoneArt>
+        </DCArtboard>
+        <DCArtboard id="refine-result" label="3.3 · refined" width={448} height={1000}>
+          <PhoneArt><ScreenRefineResult/></PhoneArt>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="citations" title="4 · Citations"
+                 subtitle="tap a footnote → read why">
+        <DCArtboard id="cit-list" label="4.1 · sources behind 48%" width={448} height={1000}>
+          <PhoneArt><ScreenCitationsList/></PhoneArt>
+        </DCArtboard>
+        <DCArtboard id="cit-detail" label="4.2 · source detail" width={448} height={1000}>
+          <PhoneArt><ScreenCitationDetail/></PhoneArt>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

@@ -45,8 +45,6 @@ var anthropicKey = builder.AddParameter("anthropic-api-key", Cfg("anthropic-api-
 var llmGateway = builder.AddProject<Projects.WcPredictions_LlmGateway>("llm-gateway")
     .WithEnvironment("ANTHROPIC_API_KEY", anthropicKey);
 
-var urlFetcher = builder.AddProject<Projects.WcPredictions_UrlFetcher>("url-fetcher");
-
 var predictionEngine = builder.AddProject<Projects.WcPredictions_PredictionEngine>("prediction-engine")
     .WithReference(wcdb)
     .WithReference(cache)
@@ -64,7 +62,6 @@ var bff = builder.AddProject<Projects.WcPredictions_Bff>("bff")
     .WithReference(wcdb)
     .WithReference(cache)
     .WithReference(predictionEngine)
-    .WithReference(urlFetcher)
     .WithEnvironment("Clerk__Authority", clerkAuthority)
     .WithEnvironment("Clerk__DevSigningKey", clerkDevSigningKey)
     .WithEnvironment("Clerk__SecretKey", clerkSecretKey)

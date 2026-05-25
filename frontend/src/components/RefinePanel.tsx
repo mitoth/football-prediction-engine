@@ -24,7 +24,6 @@ function Bars({ home, draw, away }: { home: number; draw: number; away: number }
 const NOT_APPLIED: Record<string, string> = {
   rejected_gibberish: 'That didn’t read as usable context — no credit used.',
   off_topic: 'That isn’t about this match — no credit used.',
-  dead_url: 'Couldn’t read that link — no credit used.',
 }
 
 export default function RefinePanel({
@@ -33,7 +32,6 @@ export default function RefinePanel({
   const { authed, getToken, signIn } = useAuthState()
   const [me, setMe] = useState<MeView | null>(null)
   const [text, setText] = useState('')
-  const [mode, setMode] = useState<'text' | 'url'>('text')
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [exhausted, setExhausted] = useState(false)
@@ -46,9 +44,10 @@ export default function RefinePanel({
   if (!authed) {
     return (
       <section className="refine greyed" data-testid="refine-panel">
-        <p>Tell the model what it’s missing — an injury, a tactical note, a link.</p>
+        <p>Add what you know — an injury, a tactical wrinkle, the weather.<br />
+        The prediction updates and the "why" explains what changed.</p>
         <button data-testid="refine-signin" onClick={signIn}>
-          Sign in to refine — free, 3 a day
+          Sign in to update predictions — free, 3 a day
         </button>
       </section>
     )
@@ -63,9 +62,7 @@ export default function RefinePanel({
     setBusy(true)
     try {
       const t = await getToken()
-      const body = mode === 'url'
-        ? { inputType: 'url' as const, url: text.trim() }
-        : { inputType: 'text' as const, text: text.trim() }
+      const body = { inputType: 'text' as const, text: text.trim() }
       // Editing an existing chip is a free re-run (PUT); a new chip is POST.
       const res = chip && editing
         ? await putRefine(matchId, body, t)
@@ -100,7 +97,7 @@ export default function RefinePanel({
     <section className="refine" data-testid="refine-panel">
       {free && !exhausted && (
         <p className="quota" data-testid="quota-counter">
-          {me!.quotaRemaining} of 3 refinements left today
+          {3 - me!.quotaRemaining} / 3 used today
         </p>
       )}
       {exhausted && (
@@ -111,11 +108,10 @@ export default function RefinePanel({
 
       {chip && (
         <div className="chip" data-testid="chip">
-          <span>You added: {chip.text ?? chip.url}</span>
+          <span>You added: {chip.text ?? ''}</span>
           <button data-testid="chip-edit" onClick={() => {
             setEditing(true)
-            setMode(chip.inputType === 'url' ? 'url' : 'text')
-            setText(chip.text ?? chip.url ?? '')
+            setText(chip.text ?? '')
           }}>Edit</button>
           <button data-testid="chip-remove" onClick={remove}>Remove</button>
         </div>
@@ -141,25 +137,18 @@ export default function RefinePanel({
 
       {showForm && !exhausted && (
         <div className="refine-form">
-          <div className="mode">
-            <button className={mode === 'text' ? 'on' : ''}
-              onClick={() => setMode('text')}>Note</button>
-            <button className={mode === 'url' ? 'on' : ''}
-              data-testid="refine-url-toggle"
-              onClick={() => setMode('url')}>Link</button>
-          </div>
           <textarea
             data-testid="refine-input"
-            rows={mode === 'url' ? 1 : 3}
-            placeholder={mode === 'url'
-              ? 'Paste an article link'
-              : 'e.g. Star striker ruled out with injury'}
+            rows={3}
+            placeholder="Add a note the model doesn’t know — e.g. star striker out, switching formation, heavy pitch"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
           <button data-testid="refine-submit" disabled={busy || !text.trim()}
             onClick={submit}>
-            {busy ? 'Thinking…' : editing ? 'Update' : 'Refine prediction'}
+            {busy ? 'Thinking…' : editing
+              ? 'Re-run with my edit'
+              : 'Update prediction with my note'}
           </button>
         </div>
       )}
