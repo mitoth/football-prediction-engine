@@ -48,12 +48,21 @@ export default function Terms() {
       Refinements that the model rejects as gibberish or off-topic do not
       consume your quota. Once Stripe-backed paid passes are enabled:</p>
       <ul>
-        <li><strong>$0.99 matchday pass</strong> — unlimited refinements for the calendar matchday selected.</li>
-        <li><strong>$5 World Cup tournament pass</strong> — unlimited refinements for the FIFA World Cup 2026 tournament window.</li>
+        <li><strong>$0.99 matchday pass</strong> — unlimited refinements for the calendar matchday selected, up to the daily cap below.</li>
+        <li><strong>$5 World Cup tournament pass</strong> — unlimited refinements for the FIFA World Cup 2026 tournament window, up to the daily cap below.</li>
       </ul>
-      <p>A fair-use ceiling of approximately thirty successful refinements per
-      day applies to all paid passes to discourage automated abuse and protect
-      our model-spend budget.</p>
+      <p id="daily-cap">
+        <strong>Daily cap on paid passes: 30 successful refinements per day.</strong> Each AI
+        prediction has a real per-call cost. The 30-a-day cap is set well above
+        normal usage but exists to keep predictions sustainably priced and to
+        discourage automated abuse. Rejected gibberish and off-topic input do
+        not count against the cap. The cap is disclosed on the payment page
+        before any purchase; buying a pass is acceptance of this cap. The
+        figure may change in future versions of these Terms, with notice; in
+        that case the cap on existing active passes remains the figure
+        disclosed at the time of purchase for the remainder of that pass's
+        validity window.
+      </p>
 
       <h2>5. Refunds</h2>
       <p>Paid passes are digital goods delivered immediately. Refunds are

@@ -66,6 +66,10 @@ Buckets:
 - [ ] Tax / VAT handling — likely use Stripe Tax for first launch
 - [ ] Receipt emails on
 - [ ] Live-mode keys gated behind production Clerk tenant
+- [ ] **MANDATORY ON PAYMENT PAGE:** disclose the **30-successful-refinements-per-day fair-use ceiling** before the user clicks Pay. The ceiling exists to protect API cost, not to upsell — a user who didn't expect it will chargeback. Surface it on both passes ($0.99 matchday + $5 WC tournament). Suggested copy:
+      > "Includes up to 30 successful refinements per day. Rejected gibberish and off-topic input don't count. The cap exists to keep prediction costs sustainable and is well above normal usage."
+
+      Also link to the Terms of Service section that describes the cap.
 
 ---
 
