@@ -34,8 +34,11 @@ Buckets:
 - [x] Key kept private (AppHost user-secrets)
 - [x] No proxy of the API to end users
 - [x] Footer credit ("Fixture data via API-Football")
-- [x] Logos / badges intentionally not rendered (only team names + league names + group letter as plain text)
-- [~] **Partial: ToS read via web search summary** — see [`api-football-tos-snapshot.md`](api-football-tos-snapshot.md). Live page 403s our fetcher; **paste the live text into chat to get a verbatim snapshot and verdict per hot-spot**.
+- [x] Logos / badges intentionally not rendered (only team names + league names + group letter as plain text). HARD RULE comment in `src/Ingestion/ApiFootball/ApiFootballClient.cs` documents this for future developers.
+- [x] Code-side enforcement: no `logo`, `crest`, `badge`, or image URL ever read from the API-Football response (grep-verified across `src/` and `frontend/src/`).
+- [x] **Verbatim ToS captured (partial)** — logos / images / trademarks clause is the highest-risk one and is in [`api-football-tos-snapshot.md`](api-football-tos-snapshot.md) verbatim. Verdict per hot-spot recorded.
+- [ ] **Still needed (lower priority):** capture verbatim text of the commercial-use license clause, the rate-limit / cache clause, the AI/LLM use clause if any, and the mass-media / betting / fantasy carve-out from your copy of the live ToS. Append to the same snapshot.
+- [ ] Optional: send the API-Sports support email mirroring the NewsData LLM-use email pattern.
 
 ### Anthropic (Claude API)
 

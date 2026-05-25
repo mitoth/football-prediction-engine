@@ -24,8 +24,15 @@ public sealed class LeagueSeason
     public int Season { get; set; }
 }
 
-// Minimal projections of the API-Football v3 response envelope. Only fields the
-// ingestion pipeline maps are modelled.
+// Minimal projections of the API-Football v3 response envelope. Only fields
+// the ingestion pipeline maps are modelled.
+//
+// HARD RULE — logos, badges, crests, and any visual asset returned by the
+// API are NOT mapped here and MUST NOT be persisted, served, or rendered by
+// MatchForecast. The API-Football ToS (snapshot in
+// docs/api-football-tos-snapshot.md) puts 100% of the rights-holder licensing
+// burden on us for those assets. We render team names and league names as
+// text only — nominative fair use, low risk.
 public sealed record LeagueInfo(int Id, string Name, string Type, string Country);
 public sealed record TeamInfo(int Id, string Name, bool National);
 public sealed record FixtureInfo(
