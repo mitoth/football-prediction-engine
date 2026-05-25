@@ -26,6 +26,10 @@ dist-ssr/
 !.env.example
 appsettings.*.local.json
 
+# Azure Developer CLI — per-env state holds .env with secret values pasted
+# at `azd up` time. Never commit. azd's own templates ignore this folder.
+.azure/
+
 # OS / editor
 .idea/
 *.log
