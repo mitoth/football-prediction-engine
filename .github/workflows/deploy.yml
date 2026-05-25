@@ -1,0 +1,104 @@
+name: Deploy to Azure
+
+# Manual trigger only — paid traffic deploy gate is human-in-the-loop.
+# Run from the GitHub UI: Actions → Deploy to Azure → Run workflow.
+#
+# Prerequisites (one-time, see docs/azure-deploy.md):
+#   - Azure subscription + federated OIDC trust for this repo
+#   - Repo secrets configured (AZURE_CLIENT_ID, AZURE_TENANT_ID,
+#     AZURE_SUBSCRIPTION_ID, AZURE_ENV_NAME, AZURE_SWA_TOKEN,
+#     PROD_API_URL, PROD_CLERK_PUBLISHABLE_KEY)
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: What to deploy
+        required: true
+        type: choice
+        options: [backend, frontend, both]
+        default: both
+
+# Concurrency: don't let two deploys race for the same Azure environment.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---- Backend: Aspire AppHost → Azure Container Apps via azd ---------------
+  deploy-backend:
+    if: inputs.target == 'backend' || inputs.target == 'both'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET (9.0 services + 10.0 AppHost)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - name: Install azd
+        uses: Azure/setup-azd@v2
+
+      - name: Azure login (federated OIDC)
+        run: |
+          azd auth login \
+            --client-id "${{ secrets.AZURE_CLIENT_ID }}" \
+            --federated-credential-provider github \
+            --tenant-id "${{ secrets.AZURE_TENANT_ID }}"
+
+      - name: azd provision (idempotent — no-op if infra already exists)
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
+          AZURE_LOCATION: westeurope
+        run: azd provision --no-prompt
+
+      - name: azd deploy
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
+        run: azd deploy --no-prompt
+
+  # ---- Frontend: Vite SPA → Azure Static Web Apps (free tier) ---------------
+  deploy-frontend:
+    if: inputs.target == 'frontend' || inputs.target == 'both'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # Vite reads VITE_* env at build time — bake the prod BFF URL + Clerk key
+      # into the bundle here. PROD_API_URL must point at the public Container
+      # Apps URL of the BFF (printed by `azd show` after the first deploy).
+      - name: Build
+        env:
+          VITE_API_URL: ${{ secrets.PROD_API_URL }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.PROD_CLERK_PUBLISHABLE_KEY }}
+        run: npm run build
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: frontend/dist
+          skip_app_build: true
+          skip_api_build: true

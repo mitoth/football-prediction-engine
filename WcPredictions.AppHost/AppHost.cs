@@ -71,11 +71,18 @@ var bff = builder.AddProject<Projects.WcPredictions_Bff>("bff")
 // --- Frontend ---------------------------------------------------------------
 // Vite React SPA. API base + Clerk key passed via env; the BFF URL is an
 // endpoint reference (never hardcoded) so it survives Aspire port assignment.
+//
+// PRODUCTION DEPLOY NOTE: ExcludeFromManifest keeps this resource out of the
+// Aspire→Azure publish manifest. The SPA ships separately to Azure Static Web
+// Apps (free tier) via .github/workflows/deploy.yml — see docs/azure-deploy.md.
+// In Container Apps the Vite dev server would idle a paid replica for no gain;
+// SWA gives global CDN + free TLS at $0.
 builder.AddViteApp("web", "../frontend")
     .WithExternalHttpEndpoints()
     .WithReference(bff)
     .WithEnvironment("VITE_API_URL", bff.GetEndpoint("https"))
     .WithEnvironment("VITE_CLERK_PUBLISHABLE_KEY", clerkPublishableKey)
-    .WaitFor(bff);
+    .WaitFor(bff)
+    .ExcludeFromManifest();
 
 builder.Build().Run();

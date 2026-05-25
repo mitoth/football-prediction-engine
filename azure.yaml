@@ -1,15 +1,28 @@
-# Azure Developer CLI (azd) config — deploy groundwork only.
-# The Aspire AppHost is the single service; azd provisions Azure Container Apps
-# for every resource modeled in AppHost.cs.
+# Azure Developer CLI (azd) config.
 #
-# NOT run yet (needs your Azure subscription + auth):
+# Aspire AppHost is the single azd service; azd provisions Azure Container
+# Apps for every resource modeled in AppHost.cs (BFF, Ingestion, Prediction
+# Engine, LLM Gateway + containerized Postgres + Redis with volume mounts).
+#
+# Frontend is intentionally NOT in this manifest — the Vite SPA ships to
+# Azure Static Web Apps (free tier) via .github/workflows/deploy.yml.
+# AppHost.cs marks the `web` resource ExcludeFromManifest for the same reason.
+#
+# Full runbook: docs/azure-deploy.md
+#
+# First-time provision (run locally):
+#   az login
 #   azd auth login
-#   azd up                     # provisions + deploys to Azure Container Apps
-# Aspire-native alternative:
-#   aspire deploy
+#   azd env new matchforecast-prod        # location: westeurope
+#   azd up                                # provisions + deploys backend
+#
+# Subsequent deploys: `azd deploy` (no re-provision) or use the GH Actions
+# workflow_dispatch trigger.
 #
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
 name: wcpredictions
+metadata:
+  template: matchforecast@0.1.0
 services:
   app:
     language: dotnet

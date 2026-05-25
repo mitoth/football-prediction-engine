@@ -1,0 +1,278 @@
+# Azure deploy — runbook
+
+Target: **Azure Container Apps** (West Europe) for the .NET Aspire AppHost +
+**Azure Static Web Apps** (free tier) for the React frontend.
+
+Status: **Phase A scaffolding committed (code-only).** No Azure resources
+provisioned yet. Phase B (`azd up`) is the next gated step and requires the
+user to run it from a machine with `az login` + `azd auth login` already
+done.
+
+---
+
+## Architecture (target)
+
+```
+Resource Group: rg-matchforecast-prod  (westeurope)
+├── Container Apps Environment (Consumption plan)
+│   ├── bff                     min 1 replica   (JWT validation, always-on)
+│   ├── ingestion               min 1 replica   (Quartz scheduler, always-on)
+│   ├── prediction-engine       min 0           (HTTP-triggered, scale-to-zero)
+│   ├── llm-gateway             min 0           (HTTP-triggered, scale-to-zero)
+│   ├── postgres (container)    min 1, max 1    (Azure Files mount)
+│   └── cache (Redis container) min 1, max 1    (ephemeral OK)
+├── Storage Account (Azure Files share for Postgres data)
+├── Container Registry (Basic SKU)
+├── Key Vault (all upstream API keys)
+├── Log Analytics Workspace (Container Apps logs + OTel)
+└── Static Web App (frontend SPA, FREE tier — separate from ACA env)
+```
+
+Expected idle cost: **~$55-65/month** (excludes Anthropic / NewsData /
+API-Football usage which bill directly upstream).
+
+---
+
+## Why this shape
+
+- **Containerized Postgres + Redis instead of managed services** — Aspire's
+  `WithDataVolume()` translates to an Azure Files share mount on `azd up`.
+  Cheap (~$6/month Standard tier) but lower-IOPS than Azure DB for
+  PostgreSQL. Acceptable for v1; migrate to managed if WC kickoff load
+  hurts query latency. See **Postgres durability** section below.
+- **Frontend split out of Aspire manifest** — `AppHost.cs` calls
+  `.ExcludeFromManifest()` on the Vite resource so it isn't deployed as a
+  Container App. SPA goes to SWA free tier ($0/month, global CDN, free TLS)
+  via `.github/workflows/deploy.yml`.
+- **Manual workflow_dispatch deploys** — paid traffic gate is a human
+  clicking the GitHub Actions button. Continuous deploy on push to main is
+  a Phase 6 hardening item.
+
+---
+
+## Phase B — first `azd up` (you run, one time)
+
+### 1. Install / refresh tooling
+
+```pwsh
+# Azure CLI (one-time)
+winget install Microsoft.AzureCLI
+
+# Azure Developer CLI — upgrade from 1.16.1 to current
+powershell -ex AllSigned -c "Invoke-RestMethod 'https://aka.ms/install-azd.ps1' | Invoke-Expression"
+
+# Verify
+az --version
+azd version
+```
+
+If `az --version` errors with a `_session.py` traceback, clear the corrupted
+Azure session cache:
+
+```pwsh
+Remove-Item "$env:USERPROFILE\.azure\*" -Recurse -Force
+```
+
+Then re-run `az --version`.
+
+### 2. Authenticate
+
+```pwsh
+az login                     # opens browser
+az account show              # confirm sub
+azd auth login               # separate auth for azd
+```
+
+### 3. Create the azd environment
+
+```pwsh
+cd c:\MyCodingProjects\WC_AI_Predictions_v2
+azd env new matchforecast-prod
+# When prompted: location = westeurope
+```
+
+### 4. Stage secrets in the azd env
+
+```pwsh
+azd env set ApiFootball__ApiKey "<paste your API-Football Pro key>"
+azd env set News__ApiKey         "<paste your NewsData.io paid key>"
+azd env set Anthropic__ApiKey    "<paste your Anthropic prod key>"
+azd env set Clerk__Authority     "https://<your-clerk-tenant>.clerk.accounts.dev"
+azd env set Clerk__PublishableKey "<pk_live_... or pk_test_...>"
+azd env set Clerk__SecretKey     "<sk_live_... or sk_test_...>"
+```
+
+These map to the `AddParameter("api-football-key", ...)` etc. resources in
+AppHost.cs and are written into Container App secret slots at provision
+time. Key Vault wrapping is a Phase 6 hardening item — for v1 they live as
+Container App secret refs which is acceptable.
+
+### 5. Provision + deploy
+
+```pwsh
+azd up
+# Provisions: RG, ACA env, registry, storage, log analytics, postgres
+# container, redis container, all 4 service container apps.
+# Deploys: builds + pushes container images, applies Container App revisions.
+# Takes ~10-15 minutes the first time.
+```
+
+When it finishes, `azd` prints the public URLs. Note the **BFF URL** —
+needed for `PROD_API_URL` in Phase D.
+
+### 6. Run EF migrations against the deployed Postgres
+
+The Ingestion service has a hosted `DbMigrator` that runs at startup, so
+the first deploy auto-applies migrations. Verify by checking the Ingestion
+revision logs — it should log `Database migration completed`.
+
+If the migration fails (e.g. Postgres container not ready), Container Apps
+will mark the revision unhealthy. Use `azd monitor` or the portal to view
+logs; usually a second restart fixes the race.
+
+---
+
+## Phase C — Static Web App + custom domain (later)
+
+Static Web App is created **outside** of `azd` because Aspire doesn't
+manage SWAs. Two options:
+
+1. **From the portal** — Create resource → Static Web App → free tier →
+   skip GitHub integration (we deploy via our own workflow). Copy the
+   deployment token from the resource → Overview → Manage deployment token.
+2. **From CLI** — `az staticwebapp create --name matchforecast-web
+   --resource-group rg-matchforecast-prod --location westeurope --sku Free
+   --source ""`
+
+Store the deployment token in GitHub Actions secrets as `AZURE_SWA_TOKEN`.
+
+Custom domain is deferred (`*.azurecontainerapps.io` + `*.azurestaticapps.net`
+work fine for v1 per the launch decision). When ready: see
+[launch-prep-checklist.md](launch-prep-checklist.md) → Operational →
+"Production domain registered".
+
+---
+
+## Phase D — GitHub Actions wiring
+
+### Required repo secrets
+
+| Secret | Value | Source |
+|---|---|---|
+| `AZURE_CLIENT_ID` | App registration client ID | created during federated trust setup |
+| `AZURE_TENANT_ID` | Your Entra tenant ID | `az account show --query tenantId` |
+| `AZURE_SUBSCRIPTION_ID` | Subscription ID | `az account show --query id` |
+| `AZURE_ENV_NAME` | `matchforecast-prod` | matches the azd env name |
+| `AZURE_SWA_TOKEN` | SWA deployment token | SWA resource → Manage deployment token |
+| `PROD_API_URL` | BFF public URL | printed by `azd show` after Phase B |
+| `PROD_CLERK_PUBLISHABLE_KEY` | `pk_live_...` or `pk_test_...` | Clerk dashboard |
+
+### Federated OIDC trust (one-time)
+
+GitHub Actions authenticates to Azure with no long-lived secret using
+federated identity credentials. Set up once:
+
+```pwsh
+# Create an app registration
+$app = az ad app create --display-name "matchforecast-github-deploy" | ConvertFrom-Json
+$sp  = az ad sp create --id $app.appId | ConvertFrom-Json
+
+# Grant Contributor on the subscription (or scope tighter to the RG once it exists)
+az role assignment create `
+  --assignee $sp.id `
+  --role Contributor `
+  --scope "/subscriptions/<SUBSCRIPTION_ID>"
+
+# Federated credential — main branch only
+az ad app federated-credential create --id $app.appId --parameters '{
+  "name": "matchforecast-deploy-main",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:<github-org>/<repo>:ref:refs/heads/main",
+  "audiences": ["api://AzureADTokenExchange"]
+}'
+
+# Save these into GitHub secrets:
+#   AZURE_CLIENT_ID = $app.appId
+#   AZURE_TENANT_ID = (az account show --query tenantId -o tsv)
+```
+
+Then trigger `.github/workflows/deploy.yml` → workflow_dispatch → Run.
+
+---
+
+## Postgres durability
+
+The `postgres` container in AppHost.cs is annotated with `WithDataVolume()`
+which, when published via `azd`, mounts an Azure Files share at
+`/var/lib/postgresql/data`. The share persists across Container App
+restarts and revisions.
+
+**Caveats:**
+
+- Standard Azure Files = ~1000 IOPS for the whole share. Fine for low
+  traffic, painful at WC group-stage concurrent kickoffs. Upgrade path:
+  switch to Premium Files (~$15/month for 100GB) by editing the storage
+  account SKU after provisioning.
+- Container App restarts mean ~30-60s of Postgres unavailability. The
+  Ingestion service retries; the BFF surfaces 503s briefly.
+- Backups are **not** automatic with this setup. Add a daily `pg_dump`
+  cron (Container App scheduled job or external workflow) before paid
+  traffic. See [launch-prep-checklist.md](launch-prep-checklist.md) →
+  Operational → "Production Postgres backup schedule".
+
+If durability becomes a real concern, migrate to **Azure Database for
+PostgreSQL Flexible Server** (Burstable B1ms ~$25/month, includes
+point-in-time restore + automated backups). The migration is roughly:
+
+1. Add `AddAzurePostgresFlexibleServer("postgres")` in AppHost.cs (replaces
+   `AddPostgres`)
+2. `pg_dump` from the container, `psql` into the managed instance
+3. `azd provision` to swap the resource
+4. `azd deploy` to point services at the new connection string
+
+---
+
+## Cost guardrails (Phase F)
+
+After the first `azd up` succeeds, set a budget alert in the portal:
+
+- Subscription → Cost Management → Budgets → Add
+- Amount: $75/month
+- Alert thresholds: 50% ($37.50) + 100% ($75)
+- Action: email `hello@matchforecast.app` (or your inbox)
+
+Also set a Log Analytics daily cap to prevent runaway ingestion:
+
+- Log Analytics workspace → Usage and estimated costs → Daily cap → 1 GB/day
+
+Anthropic / NewsData / API-Football costs bill upstream and are **not**
+visible in Azure Cost Management. Track those separately in each vendor's
+dashboard. See `docs/launch-prep-checklist.md` → Operational → "Cost
+alerts".
+
+---
+
+## Roll back a bad deploy
+
+Container Apps keeps the previous revision alive by default. To roll back:
+
+```pwsh
+az containerapp revision list --name bff -g rg-matchforecast-prod --query "[].{name:name,active:properties.active,createdTime:properties.createdTime}" -o table
+az containerapp revision activate --name bff -g rg-matchforecast-prod --revision <previous-revision-name>
+az containerapp revision deactivate --name bff -g rg-matchforecast-prod --revision <bad-revision-name>
+```
+
+Frontend rollback: re-run `deploy.yml` with the previous git ref selected
+in the workflow_dispatch input.
+
+---
+
+## Tear-down
+
+```pwsh
+azd down --purge --force
+```
+
+`--purge` empties Key Vault soft-delete + Container Registry soft-delete.
+Removes everything except the Static Web App (which is outside azd
+control). Delete the SWA from the portal separately if needed.
