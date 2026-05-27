@@ -18,6 +18,10 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Required for `azd deploy` / `dotnet publish /t:PublishContainer` so the
+         service ships as a container to Azure Container Apps. Aspire's local
+         dev flow does not need this, only the publish path. -->
+    <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
   </PropertyGroup>
 
 </Project>

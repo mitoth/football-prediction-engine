@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-WcPredictions.PredictionEngine-fcf0e6e2-aded-4e5f-90ee-37142ffde111</UserSecretsId>
+    <!-- Required for `azd deploy` / container publish path. -->
+    <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
   </PropertyGroup>
 
   <ItemGroup>

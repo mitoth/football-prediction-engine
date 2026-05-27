@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-WcPredictions.Ingestion-cd158247-bfc4-4c36-ac79-4f001d24317e</UserSecretsId>
+    <!-- Required for `azd deploy` / container publish path. -->
+    <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
   </PropertyGroup>
 
   <ItemGroup>
