@@ -1,11 +1,30 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 // --- Infrastructure ---------------------------------------------------------
-// Persistent container lifetime + data volume so local data survives AppHost
-// restarts (Phase 0 dev experience).
-var postgres = builder.AddPostgres("postgres")
-    .WithLifetime(ContainerLifetime.Persistent)
-    .WithDataVolume();
+// Local dev: spins up a Postgres container with persistent volume (data
+// survives AppHost restarts). Cloud publish (`azd up`): provisions Azure
+// Database for PostgreSQL Flexible Server. PublishAsAzurePostgresFlexibleServer
+// flips the publish target without breaking the local container path.
+//
+// Switched off `AddPostgres` + `WithDataVolume()` because Container Apps
+// mounts Azure Files via SMB, and SMB does not implement POSIX chmod —
+// Postgres' initdb refuses to start on a directory it cannot lock down
+// ("could not change permissions of directory /var/lib/postgresql/data:
+// Operation not permitted"). Managed PostgreSQL sidesteps the whole
+// platform-permission class of bugs and unlocks point-in-time restore.
+// Force password auth on the managed Flexible Server. The Aspire default is
+// Entra-only, which requires every client to acquire a managed-identity token
+// — the stock `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL` client integration
+// in our services has no token provider wired, so the first migration fails
+// with "No password has been provided but the backend requires one (in
+// SASL/SCRAM-SHA-256-PLUS)". Password auth keeps the connection string
+// self-contained; Aspire auto-generates and stores the admin password as a
+// secret parameter referenced from Container App secret slots.
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
+    .WithPasswordAuthentication()
+    .RunAsContainer(c => c
+        .WithLifetime(ContainerLifetime.Persistent)
+        .WithDataVolume());
 
 var wcdb = postgres.AddDatabase("wcdb");
 
@@ -65,6 +84,10 @@ var bff = builder.AddProject<Projects.WcPredictions_Bff>("bff")
     .WithEnvironment("Clerk__Authority", clerkAuthority)
     .WithEnvironment("Clerk__DevSigningKey", clerkDevSigningKey)
     .WithEnvironment("Clerk__SecretKey", clerkSecretKey)
+    // Publicly reachable so the Vite SPA on Azure Static Web Apps can hit it.
+    // All other services (Ingestion, PredictionEngine, LlmGateway) stay
+    // .internal — only the BFF is the public entry point.
+    .WithExternalHttpEndpoints()
     .WaitFor(wcdb)
     .WaitFor(predictionEngine);
 
