@@ -172,9 +172,20 @@ export default function MatchList() {
         <button
           className="show-more"
           data-testid="show-more"
-          onClick={() => setWeeks((w) => w + 1)}
+          onClick={() => {
+            // Skip empty windows. With today = 28 May 2026 and WC starting
+            // 11 Jun, clicking "+1 week" lands on a date range with zero
+            // fixtures — the user sees the same list and thinks the button
+            // is broken. Jump to whichever week *actually* exposes the next
+            // hidden match.
+            const nextHidden = matches.find((m) => m.kickoffUtc >= horizonIso)
+            if (!nextHidden) return
+            const delta = new Date(nextHidden.kickoffUtc).getTime() - Date.now()
+            const weeksNeeded = Math.ceil(delta / WEEK_MS) + 1
+            setWeeks((w) => Math.max(w + 1, weeksNeeded))
+          }}
         >
-          Show next week <span className="show-more-rem">· {remaining} more {remaining === 1 ? 'match' : 'matches'} ahead</span>
+          Show next matches <span className="show-more-rem">· {remaining} more {remaining === 1 ? 'match' : 'matches'} ahead</span>
         </button>
       )}
     </div>
