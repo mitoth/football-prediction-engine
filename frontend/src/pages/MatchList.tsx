@@ -1,11 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getMatches, type MatchListItem } from '../api'
+import { getMatches, getSyncStatus, type MatchListItem, type SyncStatus } from '../api'
 
 function timeOnly(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
     hour: '2-digit', minute: '2-digit',
   })
+}
+
+// "in 12 min", "in 3 h", "12 min ago" — small humanizer for the refresh
+// indicators. Avoids a date-fns dep for ~30 lines of UI logic. Within 60s of
+// now (either side) we render "any moment" — the BFF clamps overdue next-run
+// timestamps to "now", and a literal "0 min ago" reads as broken.
+function relativeFromNow(iso: string | null, now: number): string {
+  if (!iso) return '—'
+  const diffMs = new Date(iso).getTime() - now
+  const absMin = Math.round(Math.abs(diffMs) / 60000)
+  const future = diffMs > 0
+  if (absMin < 1) return 'any moment'
+  if (absMin < 60) return future ? `in ${absMin} min` : `${absMin} min ago`
+  const absH = Math.round(absMin / 60)
+  if (absH < 24) return future ? `in ${absH} h` : `${absH} h ago`
+  const absD = Math.round(absH / 24)
+  return future ? `in ${absD} d` : `${absD} d ago`
 }
 
 // "2026-06-14" — stable group key
@@ -65,9 +82,18 @@ export default function MatchList() {
   const [matches, setMatches] = useState<MatchListItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [weeks, setWeeks] = useState(1)
+  const [sync, setSync] = useState<SyncStatus | null>(null)
+  // Ticking clock so the "in N min" countdowns refresh without a full reload.
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     getMatches().then(setMatches).catch((e) => setError(String(e)))
+    getSyncStatus().then(setSync).catch(() => { /* non-fatal — UI hides banner */ })
+  }, [])
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(t)
   }, [])
 
   // Slice the upcoming fixtures to whatever the user has chosen to see.
@@ -88,6 +114,17 @@ export default function MatchList() {
 
   return (
     <div className="match-groups" data-testid="match-list">
+      {sync && (
+        <aside className="sync-banner" data-testid="sync-banner">
+          <span>
+            News refresh <strong>{relativeFromNow(sync.newsNextFetchAt, now)}</strong>
+            {' · '}
+            New predictions <strong>{relativeFromNow(sync.baselineNextBuildAt, now)}</strong>
+          </span>
+          <small>(news every {sync.newsIntervalMinutes} min · predictions every {sync.baselineIntervalMinutes} min)</small>
+        </aside>
+      )}
+
       {days.map((d) => (
         <section key={d.key} className="match-day" data-testid="match-day">
           <h3 className="match-day-label" data-testid="match-day-label">
@@ -114,7 +151,17 @@ export default function MatchList() {
                           <span className="teams">{m.homeTeam} <em>vs</em> {m.awayTeam}</span>
                           <span className="meta">
                             <time>{timeOnly(m.kickoffUtc)}</time>
-                            {m.hasBaseline && <span className="badge">Prediction ready</span>}
+                            {m.hasBaseline
+                              ? (
+                                <span className="badge" title={m.baselineGeneratedAt ?? ''}>
+                                  Prediction {m.baselineGeneratedAt ? `· ${relativeFromNow(m.baselineGeneratedAt, now)}` : 'ready'}
+                                </span>
+                              )
+                              : (
+                                <span className="badge badge-pending">
+                                  Prediction {sync?.baselineNextBuildAt ? relativeFromNow(sync.baselineNextBuildAt, now) : 'queued'}
+                                </span>
+                              )}
                           </span>
                         </Link>
                       </li>

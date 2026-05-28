@@ -170,6 +170,29 @@
   text-transform: uppercase;
   font-family: var(--font-mono);
 }
+.badge-pending {
+  background: transparent;
+  color: var(--chalk-muted);
+  border-color: var(--chalk-muted);
+}
+
+/* Header banner above the match list summarising the global refresh cadence
+ * (news poll + baseline regeneration). Stays unobtrusive — small typeface,
+ * dashed border to read as a status note rather than a CTA. */
+.sync-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem 1rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px dashed var(--chalk-muted);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--chalk);
+  background: rgba(255, 255, 255, 0.02);
+}
+.sync-banner strong { color: var(--accent); font-family: var(--font-mono); }
+.sync-banner small { color: var(--chalk-muted); font-size: 0.75rem; }
 
 /* --- Match detail --- */
 .detail header { margin: 0.5rem 0 1rem; }

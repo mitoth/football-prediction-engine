@@ -12,6 +12,16 @@ export interface MatchListItem {
   kickoffUtc: string
   status: string
   hasBaseline: boolean
+  baselineGeneratedAt: string | null
+}
+
+export interface SyncStatus {
+  newsLastFetchedAt: string | null
+  newsNextFetchAt: string | null
+  newsIntervalMinutes: number
+  baselineLastBuiltAt: string | null
+  baselineNextBuildAt: string | null
+  baselineIntervalMinutes: number
 }
 
 export interface Citation {
@@ -52,6 +62,7 @@ async function getJson<T>(path: string): Promise<T> {
 
 export const getMatches = () => getJson<MatchListItem[]>('/matches')
 export const getMatch = (id: string) => getJson<MatchDetail>(`/matches/${id}`)
+export const getSyncStatus = () => getJson<SyncStatus>('/meta/sync-status')
 
 // --- Phase 4: authed refinement ---
 
