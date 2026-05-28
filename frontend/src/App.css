@@ -488,8 +488,30 @@
   padding: 0 0.5rem;
   font-weight: 700;
 }
-.refine.greyed { opacity: 0.85; text-align: center; }
+.refine.greyed { text-align: center; }
 .refine.greyed p { color: var(--chalk-muted); margin: 0 0 0.6rem; }
+
+/* Anonymous-state CTA: the sign-in button is the *only* path to refinement,
+ * so it must read as the primary action — same accent yellow as the score
+ * line. Dark text on the accent fill keeps WCAG contrast safe. */
+.refine.greyed button {
+  background: var(--accent);
+  color: var(--felt-deep);
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  padding: 0.85rem 1.4rem;
+  font-family: var(--font-chalk);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
+}
+.refine.greyed button:hover {
+  background: transparent;
+  color: var(--accent);
+}
+.refine.greyed button:active { transform: translateY(1px); }
 
 .refine .quota {
   color: var(--chalk-muted);

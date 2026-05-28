@@ -12,6 +12,11 @@
          runtime assembly always matches what Data is compiled against. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <!-- EF.Design is needed in the *startup project* the `dotnet ef migrations
+         add` command targets. AppHost is net10 (different TFM from Data),
+         so EF tooling can't use it; the BFF (net9, references Data) is the
+         next-cleanest startup choice. No runtime cost. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
   </ItemGroup>
 
   <PropertyGroup>

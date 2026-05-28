@@ -25,6 +25,17 @@ public sealed class BaselineService(
 
     private static string CacheKey(Guid matchId) => $"baseline:{matchId}";
 
+    // The single source of truth for "this article mentions this match". Used
+    // both to feed the LLM in BuildAsync and to detect news growth in the
+    // refresh path (BaselineJob). Keep these in sync — otherwise the counts
+    // diverge and we either refresh too eagerly or starve.
+    public static IQueryable<Article> RelevantArticles(WcDbContext db, string home, string away) =>
+        db.Articles.Where(a =>
+            EF.Functions.ILike(a.Headline, $"%{home}%") ||
+            EF.Functions.ILike(a.Headline, $"%{away}%") ||
+            EF.Functions.ILike(a.Snippet,  $"%{home}%") ||
+            EF.Functions.ILike(a.Snippet,  $"%{away}%"));
+
     // Read-through: a cached baseline is returned WITHOUT calling the gateway
     // (the §16 "second request = Redis hit, no second LLM call" guarantee).
     public async Task<BaselineDto> GetOrBuildAsync(Guid matchId, CancellationToken ct)
@@ -51,12 +62,11 @@ public sealed class BaselineService(
         // Falls back to the newest articles if no team-specific hit exists.
         var home = match.HomeTeam.Name;
         var away = match.AwayTeam.Name;
-        var relevant = await db.Articles
-            .Where(a =>
-                EF.Functions.ILike(a.Headline, $"%{home}%") ||
-                EF.Functions.ILike(a.Headline, $"%{away}%") ||
-                EF.Functions.ILike(a.Snippet,  $"%{home}%") ||
-                EF.Functions.ILike(a.Snippet,  $"%{away}%"))
+        var relevantQ = RelevantArticles(db, home, away);
+        // Total count drives the refresh decision (see BaselineJob); the
+        // capped slice goes to the LLM.
+        var relevantCount = await relevantQ.CountAsync(ct);
+        var relevant = await relevantQ
             .OrderByDescending(a => a.FetchedAt)
             .Take(ArticleContextSize)
             .ToListAsync(ct);
@@ -108,6 +118,7 @@ public sealed class BaselineService(
             WhyText = resp.Why,
             RefreshTrigger = trigger,
             CreatedAt = DateTimeOffset.UtcNow,
+            RelevantArticleCount = relevantCount,
         };
         db.Baselines.Add(baseline);
         foreach (var articleId in readArticleIds)

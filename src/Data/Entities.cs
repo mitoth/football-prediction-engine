@@ -107,6 +107,12 @@ public class Baseline
     public string WhyText { get; set; } = null!;
     public string RefreshTrigger { get; set; } = null!; // t24h|lineup|breaking|stats-only
     public DateTimeOffset CreatedAt { get; set; }
+    // Total relevant articles available at build time (not capped — Citations
+    // only stores the ArticleContextSize fed to the LLM). Used by BaselineJob's
+    // T-1d refresh: rebuild when the current relevant-count exceeds this value,
+    // i.e. fresh news has dropped that wasn't in the prompt. Default 0 lets
+    // pre-existing rows (before this column) get refreshed on the next tick.
+    public int RelevantArticleCount { get; set; }
 
     public Match Match { get; set; } = null!;
     public ICollection<BaselineCitation> Citations { get; set; } = new List<BaselineCitation>();
