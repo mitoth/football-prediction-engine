@@ -114,17 +114,6 @@ export default function MatchList() {
 
   return (
     <div className="match-groups" data-testid="match-list">
-      {sync && (
-        <aside className="sync-banner" data-testid="sync-banner">
-          <span>
-            News refresh <strong>{relativeFromNow(sync.newsNextFetchAt, now)}</strong>
-            {' · '}
-            New predictions <strong>{relativeFromNow(sync.baselineNextBuildAt, now)}</strong>
-          </span>
-          <small>(news every {sync.newsIntervalMinutes} min · predictions every {sync.baselineIntervalMinutes} min)</small>
-        </aside>
-      )}
-
       {days.map((d) => (
         <section key={d.key} className="match-day" data-testid="match-day">
           <h3 className="match-day-label" data-testid="match-day-label">
@@ -151,17 +140,22 @@ export default function MatchList() {
                           <span className="teams">{m.homeTeam} <em>vs</em> {m.awayTeam}</span>
                           <span className="meta">
                             <time>{timeOnly(m.kickoffUtc)}</time>
-                            {m.hasBaseline
-                              ? (
-                                <span className="badge" title={m.baselineGeneratedAt ?? ''}>
-                                  Prediction {m.baselineGeneratedAt ? `· ${relativeFromNow(m.baselineGeneratedAt, now)}` : 'ready'}
-                                </span>
-                              )
-                              : (
-                                <span className="badge badge-pending">
-                                  Prediction {sync?.baselineNextBuildAt ? relativeFromNow(sync.baselineNextBuildAt, now) : 'queued'}
+                            <span className="prediction-status">
+                              {m.hasBaseline
+                                ? (
+                                  <span className="badge" title={m.baselineGeneratedAt ?? ''}>
+                                    From {relativeFromNow(m.baselineGeneratedAt, now)}
+                                  </span>
+                                )
+                                : (
+                                  <span className="badge badge-pending">Not generated yet</span>
+                                )}
+                              {sync?.baselineNextBuildAt && (
+                                <span className="badge badge-pending" title={`Engine checks every ${sync.baselineIntervalMinutes} min`}>
+                                  Next check {relativeFromNow(sync.baselineNextBuildAt, now)}
                                 </span>
                               )}
+                            </span>
                           </span>
                         </Link>
                       </li>
