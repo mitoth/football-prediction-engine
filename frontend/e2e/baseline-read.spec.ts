@@ -11,7 +11,7 @@ const list = [
     league: 'World Cup',
     homeTeam: 'Brazil',
     awayTeam: 'Argentina',
-    kickoffUtc: '2026-06-14T19:00:00Z',
+    kickoffUtc: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(),
     status: 'NS',
     hasBaseline: true,
   },

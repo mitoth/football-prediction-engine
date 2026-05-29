@@ -10,11 +10,11 @@ const MATCH_ID = '11111111-1111-1111-1111-111111111111'
 
 const list = [{
   id: MATCH_ID, league: 'World Cup', homeTeam: 'Brazil', awayTeam: 'Argentina',
-  kickoffUtc: '2026-06-14T19:00:00Z', status: 'NS', hasBaseline: true,
+  kickoffUtc: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(), status: 'NS', hasBaseline: true,
 }]
 const detail = {
   id: MATCH_ID, league: 'World Cup', homeTeam: 'Brazil', awayTeam: 'Argentina',
-  kickoffUtc: '2026-06-14T19:00:00Z', status: 'NS',
+  kickoffUtc: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(), status: 'NS',
   baseline: {
     version: 1, home: 0.55, draw: 0.27, away: 0.18, predHome: 2, predAway: 1,
     why: 'Brazil form.', citations: [],
