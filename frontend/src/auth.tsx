@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react'
-import { useAuth, useClerk } from '@clerk/clerk-react'
+import { useAuth, useClerk, useUser } from '@clerk/clerk-react'
 import { identify } from './analytics'
 
 // One auth abstraction so components never call Clerk hooks directly (those are
@@ -31,10 +31,21 @@ export const useAuthState = () => useContext(Ctx)
 // Mounted only inside ClerkProvider.
 function ClerkBridge({ children }: { children: ReactNode }) {
   const { isSignedIn, userId, getToken } = useAuth()
+  const { user } = useUser()
   const clerk = useClerk()
-  // Bridge Clerk → PostHog. Identify on sign-in, reset on sign-out so the
-  // anonymous distinct_id doesn't accidentally carry session-bound traits.
-  useEffect(() => { identify(isSignedIn ? userId ?? null : null) }, [isSignedIn, userId])
+  // Bridge Clerk → PostHog. Identify on sign-in with the user's name/email
+  // so PostHog Persons read as humans, not Clerk userIds. Reset on sign-out
+  // so the anonymous distinct_id doesn't accidentally carry session-bound
+  // traits. Privacy Policy §5 discloses the email/name flow to PostHog.
+  useEffect(() => {
+    if (!isSignedIn || !userId) { identify(null); return }
+    identify(userId, {
+      email: user?.primaryEmailAddress?.emailAddress,
+      name: user?.fullName ?? user?.username ?? undefined,
+      firstName: user?.firstName ?? undefined,
+      lastName: user?.lastName ?? undefined,
+    })
+  }, [isSignedIn, userId, user])
   const value: AuthState = {
     authed: !!isSignedIn,
     getToken: () => getToken(),
