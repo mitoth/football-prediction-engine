@@ -4,6 +4,7 @@ import {
   deleteRefine, getMe, postRefine, putRefine,
   type BaselineView, type Chip, type MeView, type Refined,
 } from '../api'
+import { event } from '../analytics'
 
 const pct = (p: number) => `${Math.round(p * 100)}%`
 
@@ -46,7 +47,10 @@ export default function RefinePanel({
       <section className="refine greyed" data-testid="refine-panel">
         <p>Add what you know — an injury, a tactical wrinkle, the weather.<br />
         The prediction updates and the "why" explains what changed.</p>
-        <button data-testid="refine-signin" onClick={signIn}>
+        <button data-testid="refine-signin" onClick={() => {
+          event('signin_clicked', { source: 'refine-panel', matchId })
+          signIn()
+        }}>
           Sign in to update predictions — free, 3 a day
         </button>
       </section>
@@ -67,6 +71,13 @@ export default function RefinePanel({
       const res = chip && editing
         ? await putRefine(matchId, body, t)
         : await postRefine(matchId, body, t)
+      event('refinement_submitted', {
+        matchId,
+        action: chip && editing ? 'edit' : 'new',
+        status: res.status,                  // success | rejected_gibberish | off_topic | quota_exhausted
+        applied: res.applied,
+        quotaRemaining: res.quotaRemaining,
+      })
       if (res.status === 'quota_exhausted') { setExhausted(true); return }
       setExhausted(false)
       setEditing(false)

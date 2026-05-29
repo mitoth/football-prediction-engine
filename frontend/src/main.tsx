@@ -5,11 +5,17 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './auth'
+import { initAnalytics, initCloudflareBeacon } from './analytics'
 
 // Phase 0: the Clerk publishable key is injected by the AppHost as
 // VITE_CLERK_PUBLISHABLE_KEY. With no Clerk tenant yet it's empty, so the
 // shell renders without ClerkProvider and shows a "not configured" notice.
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
+
+// PostHog: no-ops when VITE_POSTHOG_KEY is unset.
+initAnalytics()
+// Cloudflare Web Analytics beacon: no-ops when VITE_CLOUDFLARE_BEACON_TOKEN is unset.
+initCloudflareBeacon()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

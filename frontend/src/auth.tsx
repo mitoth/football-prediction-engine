@@ -1,5 +1,6 @@
-import { createContext, useContext, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, type ReactNode } from 'react'
 import { useAuth, useClerk } from '@clerk/clerk-react'
+import { identify } from './analytics'
 
 // One auth abstraction so components never call Clerk hooks directly (those are
 // only valid under ClerkProvider, which only exists when a publishable key is
@@ -29,8 +30,11 @@ export const useAuthState = () => useContext(Ctx)
 
 // Mounted only inside ClerkProvider.
 function ClerkBridge({ children }: { children: ReactNode }) {
-  const { isSignedIn, getToken } = useAuth()
+  const { isSignedIn, userId, getToken } = useAuth()
   const clerk = useClerk()
+  // Bridge Clerk → PostHog. Identify on sign-in, reset on sign-out so the
+  // anonymous distinct_id doesn't accidentally carry session-bound traits.
+  useEffect(() => { identify(isSignedIn ? userId ?? null : null) }, [isSignedIn, userId])
   const value: AuthState = {
     authed: !!isSignedIn,
     getToken: () => getToken(),

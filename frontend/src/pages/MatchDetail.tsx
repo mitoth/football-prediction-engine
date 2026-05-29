@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getMatch, type MatchDetail as Detail } from '../api'
 import RefinePanel from '../components/RefinePanel'
+import { event } from '../analytics'
 
 const pct = (p: number) => `${Math.round(p * 100)}%`
 
@@ -22,7 +23,14 @@ export default function MatchDetail() {
 
   useEffect(() => {
     if (!id) return
-    getMatch(id).then(setMatch).catch((e) => setError(String(e)))
+    getMatch(id).then((m) => {
+      setMatch(m)
+      event('match_viewed', {
+        matchId: m.id,
+        league: m.league,
+        hasBaseline: !!m.baseline,
+      })
+    }).catch((e) => setError(String(e)))
   }, [id])
 
   if (error) return <p className="state" data-testid="error">Couldn’t load match: {error}</p>
