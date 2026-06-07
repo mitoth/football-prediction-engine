@@ -56,7 +56,7 @@ export default function App({ clerkConfigured }: { clerkConfigured: boolean }) {
           <span aria-hidden="true"> · </span>
           <Link to="/terms">Terms</Link>
           <span aria-hidden="true"> · </span>
-          <a href="mailto:hello@matchforecast.app">Contact</a>
+          <a href="mailto:hello@wcaipredictions.com">Contact</a>
         </p>
       </footer>
 

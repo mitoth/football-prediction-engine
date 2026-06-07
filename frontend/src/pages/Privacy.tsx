@@ -16,7 +16,7 @@ export default function Privacy() {
       <p>
         MatchForecast is operated by an individual developer pre-incorporation
         as of the date above (a formal entity will be named here once
-        registered). For privacy questions, email <a href="mailto:privacy@matchforecast.app">privacy@matchforecast.app</a>{' '}
+        registered). For privacy questions, email <a href="mailto:privacy@wcaipredictions.com">privacy@wcaipredictions.com</a>{' '}
         — this is the contact for data export, data delete, and any other
         questions arising under the GDPR or any equivalent data protection
         law.
@@ -124,9 +124,9 @@ export default function Privacy() {
       banner on your next visit if a change materially affects you.</p>
 
       <h2>13. Contact</h2>
-      <p>Privacy / GDPR: <a href="mailto:privacy@matchforecast.app">privacy@matchforecast.app</a>{' '}
-      · DMCA / copyright: <a href="mailto:legal@matchforecast.app">legal@matchforecast.app</a>{' '}
-      · General: <a href="mailto:hello@matchforecast.app">hello@matchforecast.app</a></p>
+      <p>Privacy / GDPR: <a href="mailto:privacy@wcaipredictions.com">privacy@wcaipredictions.com</a>{' '}
+      · DMCA / copyright: <a href="mailto:legal@wcaipredictions.com">legal@wcaipredictions.com</a>{' '}
+      · General: <a href="mailto:hello@wcaipredictions.com">hello@wcaipredictions.com</a></p>
 
       <p className="legal-note">
         This policy is a working draft prepared by the developer. It has not

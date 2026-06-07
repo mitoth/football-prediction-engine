@@ -68,7 +68,7 @@ export default function Terms() {
       <p>Paid passes are digital goods delivered immediately. Refunds are
       offered on a discretionary basis within fourteen days of purchase if
       the pass has not been used. Stripe handles the payment dispute process;
-      contact us at <a href="mailto:billing@matchforecast.app">billing@matchforecast.app</a> before opening a chargeback.</p>
+      contact us at <a href="mailto:billing@wcaipredictions.com">billing@wcaipredictions.com</a> before opening a chargeback.</p>
 
       <h2>6. Acceptable use</h2>
       <p>You agree not to:</p>
@@ -129,9 +129,9 @@ export default function Terms() {
       formally incorporated.</p>
 
       <h2>14. Contact</h2>
-      <p>General: <a href="mailto:hello@matchforecast.app">hello@matchforecast.app</a>{' '}
-      · Billing: <a href="mailto:billing@matchforecast.app">billing@matchforecast.app</a>{' '}
-      · Legal / DMCA: <a href="mailto:legal@matchforecast.app">legal@matchforecast.app</a></p>
+      <p>General: <a href="mailto:hello@wcaipredictions.com">hello@wcaipredictions.com</a>{' '}
+      · Billing: <a href="mailto:billing@wcaipredictions.com">billing@wcaipredictions.com</a>{' '}
+      · Legal / DMCA: <a href="mailto:legal@wcaipredictions.com">legal@wcaipredictions.com</a></p>
 
       <p className="legal-note">
         These Terms are a working draft prepared by the developer. They have
