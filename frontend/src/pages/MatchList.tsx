@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getMatches, getSyncStatus, type MatchListItem, type SyncStatus } from '../api'
+import { getMatches, type MatchListItem } from '../api'
 
 function timeOnly(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -82,13 +82,11 @@ export default function MatchList() {
   const [matches, setMatches] = useState<MatchListItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [weeks, setWeeks] = useState(1)
-  const [sync, setSync] = useState<SyncStatus | null>(null)
-  // Ticking clock so the "in N min" countdowns refresh without a full reload.
+  // Ticking clock so the "From X ago" age refreshes without a full reload.
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     getMatches().then(setMatches).catch((e) => setError(String(e)))
-    getSyncStatus().then(setSync).catch(() => { /* non-fatal — UI hides banner */ })
   }, [])
 
   useEffect(() => {
@@ -150,11 +148,6 @@ export default function MatchList() {
                                 : (
                                   <span className="badge badge-pending">Not generated yet</span>
                                 )}
-                              {sync?.baselineNextBuildAt && (
-                                <span className="badge badge-pending" title={`Engine checks every ${sync.baselineIntervalMinutes} min`}>
-                                  Next check {relativeFromNow(sync.baselineNextBuildAt, now)}
-                                </span>
-                              )}
                             </span>
                           </span>
                         </Link>
