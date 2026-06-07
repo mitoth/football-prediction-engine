@@ -78,6 +78,28 @@ function groupMatches(matches: MatchListItem[]): DayGroup[] {
 // 7 more days each time — the list opens narrow and the user pulls more in.
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
+// Mirror of BaselineJob.BuildHorizon in PredictionEngine. When a match's
+// kickoff drops below now + this value, the next hourly Quartz tick builds
+// its baseline. Keep the constants synced — if the backend horizon changes,
+// update here too. Off-by-an-hour is fine; the UI is informational.
+const BUILD_HORIZON_DAYS = 2
+const HOUR_MS = 60 * 60 * 1000
+
+// "Prediction in 1 d", "Prediction in 14 min" — when it's known the engine
+// hasn't built one yet. Two regimes: outside the T-2d window we count down
+// to that boundary; inside it we count down to the next hourly tick (the
+// engine fires every 60 min). Returns null when the match has already
+// kicked off and we'd rather say nothing than negative time.
+function nextBaselineEta(kickoffIso: string, now: number): string | null {
+  const kickoffMs = new Date(kickoffIso).getTime()
+  if (kickoffMs <= now) return null
+  const windowStartMs = kickoffMs - BUILD_HORIZON_DAYS * 24 * HOUR_MS
+  if (now < windowStartMs) return relativeFromNow(new Date(windowStartMs).toISOString(), now)
+  // Already inside the build window — the engine runs hourly; "in <60 min"
+  // is the truthful upper bound without exposing Quartz internals.
+  return 'in <60 min'
+}
+
 export default function MatchList() {
   const [matches, setMatches] = useState<MatchListItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -145,9 +167,14 @@ export default function MatchList() {
                                     From {relativeFromNow(m.baselineGeneratedAt, now)}
                                   </span>
                                 )
-                                : (
-                                  <span className="badge badge-pending">Not generated yet</span>
-                                )}
+                                : (() => {
+                                    const eta = nextBaselineEta(m.kickoffUtc, now)
+                                    return (
+                                      <span className="badge badge-pending">
+                                        {eta ? `Prediction ${eta}` : 'No prediction'}
+                                      </span>
+                                    )
+                                  })()}
                             </span>
                           </span>
                         </Link>
