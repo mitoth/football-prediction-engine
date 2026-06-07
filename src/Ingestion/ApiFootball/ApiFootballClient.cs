@@ -88,7 +88,12 @@ public sealed class ApiFootballClient(HttpClient http)
         var groupedTables = env?.Response.FirstOrDefault()?.League.Standings ?? [];
         foreach (var table in groupedTables)
             foreach (var row in table)
-                if (!string.IsNullOrWhiteSpace(row.Group))
+                // Real group letters look like "Group A"/"Group B". API-Football
+                // also returns a "Ranking of third-placed teams" table whose
+                // Group field is that literal string — without this filter that
+                // value overwrites the team's real group letter in the dict
+                // (every WC team appears in that ranking table too).
+                if (row.Group.StartsWith("Group ", StringComparison.OrdinalIgnoreCase))
                     map[row.Team.Id] = row.Group;
         return map;
     }
