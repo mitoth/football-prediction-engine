@@ -33,10 +33,11 @@ export default function CookieBanner() {
   return (
     <aside className="cookie-banner" role="dialog" aria-live="polite" data-testid="cookie-banner">
       <p>
-        MatchForecast uses only the cookies needed for sign-in and your daily
-        refinement quota. We run anonymous, cookieless analytics
-        (PostHog memory-only + Cloudflare Web Analytics) so we can see traffic
-        and product usage — no advertising and no tracking cookies.{' '}
+        MatchForecast uses only the cookies needed for sign-in and to count
+        your daily chat messages (a random <code>mf_anon_id</code> for guests
+        + the Clerk session cookie once you sign in). We run anonymous,
+        cookieless analytics (PostHog memory-only + Cloudflare Web Analytics)
+        — no advertising and no tracking cookies.{' '}
         <Link to="/privacy" data-testid="cookie-banner-learn">Learn more</Link>.
       </p>
       <button data-testid="cookie-banner-dismiss" onClick={dismiss}>Got it</button>

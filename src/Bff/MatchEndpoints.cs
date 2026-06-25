@@ -29,11 +29,28 @@ public sealed record CitationView(
 
 public sealed record BaselineView(
     int Version, double Home, double Draw, double Away,
-    int PredHome, int PredAway, string Why, IReadOnlyList<CitationView> Citations);
+    int PredHome, int PredAway, string Why, IReadOnlyList<CitationView> Citations,
+    DateTimeOffset GeneratedAt);
 
 public sealed record MatchDetail(
     Guid Id, string League, string? Stage, string HomeTeam, string AwayTeam,
     DateTimeOffset KickoffUtc, string Status, BaselineView? Baseline);
+
+// Accuracy / results page DTOs. Counters are independent buckets (a match
+// that hit the exact score also counts as CorrectWinner + CorrectGoalDifference).
+// Wrong is the inverse of CorrectWinner — the headline "we got the winner wrong"
+// count, which is easier to read than "Total minus CorrectWinner" client-side.
+public sealed record ResultsAggregate(
+    int Total, int ExactScore, int CorrectWinner, int CorrectGoalDifference, int Wrong);
+
+public sealed record MatchResultRow(
+    Guid MatchId, string League, string HomeTeam, string AwayTeam,
+    DateTimeOffset KickoffUtc,
+    int PredHome, int PredAway, int ActualHome, int ActualAway,
+    string Verdict); // exact | goal_diff | winner | wrong
+
+public sealed record ResultsPageView(
+    ResultsAggregate Aggregate, IReadOnlyList<MatchResultRow> Rows);
 
 public static class MatchEndpoints
 {
@@ -128,6 +145,7 @@ public static class MatchEndpoints
                     Citations = b.Citations.Select(c => new CitationView(
                         c.Article.Id, c.Article.Headline, c.Article.Outlet,
                         c.Article.Url, c.Article.Snippet)).ToList(),
+                    b.CreatedAt,
                 })
                 .FirstOrDefaultAsync(ct);
 
@@ -142,11 +160,68 @@ public static class MatchEndpoints
                     r.GetProperty("draw").GetDouble(),
                     r.GetProperty("away").GetDouble(),
                     baseline.PredHome, baseline.PredAway, baseline.WhyText,
-                    baseline.Citations);
+                    baseline.Citations,
+                    baseline.CreatedAt);
             }
 
             return Results.Ok(new MatchDetail(
                 m.Id, m.League, m.Stage, m.Home, m.Away, m.KickoffUtc, m.Status, view));
         });
+
+        // Accuracy page. Public + anonymous — this is a marketing surface
+        // ("look how the model has done"), and there's no per-user data here.
+        // Matches without a PredictionSnapshot are excluded: the page is
+        // strictly about predictions-vs-reality, and a finished match we never
+        // predicted has nothing to score.
+        app.MapGet("/matches/results", async (WcDbContext db, CancellationToken ct) =>
+        {
+            var raw = await (
+                from m in db.Matches
+                where m.Result != null
+                let snap = db.PredictionSnapshots
+                             .Where(s => s.MatchId == m.Id)
+                             .OrderByDescending(s => s.CapturedAt)
+                             .FirstOrDefault()
+                where snap != null
+                orderby m.Result!.SettledAt descending
+                select new
+                {
+                    m.Id,
+                    League = m.League.Name,
+                    Home = m.HomeTeam.Name,
+                    Away = m.AwayTeam.Name,
+                    m.KickoffUtc,
+                    ActualHome = m.Result!.HomeGoals,
+                    ActualAway = m.Result!.AwayGoals,
+                    PredHome = snap!.PredHome,
+                    PredAway = snap!.PredAway,
+                }).ToListAsync(ct);
+
+            var rows = raw.Select(x => new MatchResultRow(
+                x.Id, x.League, x.Home, x.Away, x.KickoffUtc,
+                x.PredHome, x.PredAway, x.ActualHome, x.ActualAway,
+                ClassifyVerdict(x.PredHome, x.PredAway, x.ActualHome, x.ActualAway))).ToList();
+
+            int correctWinner = rows.Count(r => r.Verdict is "exact" or "goal_diff" or "winner");
+            var agg = new ResultsAggregate(
+                Total: rows.Count,
+                ExactScore: rows.Count(r => r.Verdict == "exact"),
+                CorrectWinner: correctWinner,
+                CorrectGoalDifference: rows.Count(r => r.Verdict is "exact" or "goal_diff"),
+                Wrong: rows.Count - correctWinner);
+
+            return Results.Ok(new ResultsPageView(agg, rows));
+        });
+    }
+
+    // Verdict tiers, highest first. Picked in priority order so each row has
+    // exactly one label; the aggregate counters inflate each independent
+    // bucket from those tiers (see ResultsAggregate).
+    internal static string ClassifyVerdict(int predH, int predA, int actH, int actA)
+    {
+        if (predH == actH && predA == actA) return "exact";
+        if (predH - predA == actH - actA) return "goal_diff";
+        if (Math.Sign(predH - predA) == Math.Sign(actH - actA)) return "winner";
+        return "wrong";
     }
 }

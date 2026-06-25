@@ -21,7 +21,11 @@ public sealed class FixtureSyncService(
         var byProvider = await db.Teams
             .Where(t => t.ProviderTeamId != null)
             .ToDictionaryAsync(t => t.ProviderTeamId!, ct);
+        // Include Result so the final-score write path below can skip matches
+        // that already have a row — otherwise EF would try to insert a duplicate
+        // MatchResult (PK = MatchId) on the next sync.
         var existing = await db.Matches
+            .Include(m => m.Result)
             .Where(m => m.ProviderFixtureId != null)
             .ToDictionaryAsync(m => m.ProviderFixtureId!, ct);
 
@@ -83,6 +87,26 @@ public sealed class FixtureSyncService(
                 match.KickoffUtc = f.KickoffUtc;
                 match.Status = f.Status;
                 match.Stage = ComposeStage(f.Stage, f.HomeTeamId, groupByTeam);
+
+                // Final-score capture. Once the provider reports the match
+                // finished (FT regulation, AET extra time, PEN shoot-out)
+                // and ships both goal totals, lock the result in. The row is
+                // immutable — never overwrite once written — which is why we
+                // only insert when Result is still null.
+                if (match.Result is null
+                    && IsFinished(f.Status)
+                    && f.HomeGoals is int hg
+                    && f.AwayGoals is int ag)
+                {
+                    match.Result = new MatchResult
+                    {
+                        MatchId = match.Id,
+                        HomeGoals = hg,
+                        AwayGoals = ag,
+                        Outcome = hg > ag ? "H" : ag > hg ? "A" : "D",
+                        SettledAt = DateTimeOffset.UtcNow,
+                    };
+                }
             }
 
             log.LogInformation(
@@ -92,6 +116,14 @@ public sealed class FixtureSyncService(
 
         await db.SaveChangesAsync(ct);
     }
+
+    // API-Football status codes considered "match has a final score":
+    // FT = full-time (regulation), AET = decided in extra time, PEN = decided on
+    // penalties. We score the goal totals reported by the provider (which
+    // include AET goals but exclude shoot-out kicks), matching what the
+    // baseline prediction targets.
+    private static bool IsFinished(string status) =>
+        status is "FT" or "AET" or "PEN";
 
     // "Group Stage - 1" + team in Group A → "Group A · Stage 1". For non-group
     // rounds (knockouts, league phase, regular season), or when no group is

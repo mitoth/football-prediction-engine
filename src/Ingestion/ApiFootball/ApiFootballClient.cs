@@ -37,7 +37,8 @@ public sealed record LeagueInfo(int Id, string Name, string Type, string Country
 public sealed record TeamInfo(int Id, string Name, bool National);
 public sealed record FixtureInfo(
     int Id, DateTimeOffset KickoffUtc, string Status, string? Stage,
-    int HomeTeamId, string HomeTeamName, int AwayTeamId, string AwayTeamName);
+    int HomeTeamId, string HomeTeamName, int AwayTeamId, string AwayTeamName,
+    int? HomeGoals, int? AwayGoals);
 
 public sealed class ApiFootballClient(HttpClient http)
 {
@@ -65,7 +66,8 @@ public sealed class ApiFootballClient(HttpClient http)
         return env?.Response.Select(x => new FixtureInfo(
             x.Fixture.Id, x.Fixture.Date, x.Fixture.Status.Short, x.League.Round,
             x.Teams.Home.Id, x.Teams.Home.Name,
-            x.Teams.Away.Id, x.Teams.Away.Name)).ToList() ?? [];
+            x.Teams.Away.Id, x.Teams.Away.Name,
+            x.Goals.Home, x.Goals.Away)).ToList() ?? [];
     }
 
     // Standings exposes each team's group label (e.g. "Group A") for tournaments
@@ -109,12 +111,16 @@ public sealed class ApiFootballClient(HttpClient http)
         public FixtureDto Fixture { get; set; } = new();
         public LeagueRoundDto League { get; set; } = new();
         public TeamsDto Teams { get; set; } = new();
+        public GoalsDto Goals { get; set; } = new();
     }
     private sealed class FixtureDto { public int Id { get; set; } public DateTimeOffset Date { get; set; } public StatusDto Status { get; set; } = new(); }
     private sealed class LeagueRoundDto { public string? Round { get; set; } }
     private sealed class StatusDto { [JsonPropertyName("short")] public string Short { get; set; } = ""; }
     private sealed class TeamsDto { public SideDto Home { get; set; } = new(); public SideDto Away { get; set; } = new(); }
     private sealed class SideDto { public int Id { get; set; } public string Name { get; set; } = ""; }
+    // API-Football fixtures response: top-level `goals: { home: int|null, away: int|null }`.
+    // Null until the match has at least started; remains null for postponed/cancelled rows.
+    private sealed class GoalsDto { public int? Home { get; set; } public int? Away { get; set; } }
 
     // Standings envelope: response[].league.standings is a list of group-tables;
     // each row carries the team + its group label.

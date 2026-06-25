@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using WcPredictions.Data;
@@ -11,9 +12,11 @@ using WcPredictions.Data;
 namespace WcPredictions.Data.Migrations
 {
     [DbContext(typeof(WcDbContext))]
-    partial class WcDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260611070513_AddChatMode")]
+    partial class AddChatMode
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

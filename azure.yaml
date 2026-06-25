@@ -28,3 +28,35 @@ services:
     language: dotnet
     project: ./WcPredictions.AppHost/WcPredictions.AppHost.csproj
     host: containerapp
+
+# Root-level hooks fire once per `azd deploy` (not per Aspire resource).
+# Service-level hooks under `services.<name>` don't work for our setup because
+# the azd Aspire integration unpacks AppHost.cs into dynamic service names
+# (bff, cache, ingestion, ...) — the static `app` entry above is unused for
+# hook routing.
+#
+# Post-deploy guard for the bff Container App.
+#
+# predeploy: snapshots the currently serving revision name so the postdeploy
+#   probe can tell the user which revision to roll back to if the new one is
+#   broken.
+#
+# postdeploy: rebinds the api.wcaipredictions.com custom domain via ARM REST
+#   (Aspire strips it every deploy) and runs smoke probes against the live
+#   URL. On any probe failure, throws with a manual rollback command pointing
+#   at the snapshotted previous revision.
+hooks:
+  predeploy:
+    windows:
+      shell: pwsh
+      run: ./scripts/predeploy-bff-bluegreen.ps1
+    posix:
+      shell: pwsh
+      run: ./scripts/predeploy-bff-bluegreen.ps1
+  postdeploy:
+    windows:
+      shell: pwsh
+      run: ./scripts/postdeploy-bff-bluegreen.ps1
+    posix:
+      shell: pwsh
+      run: ./scripts/postdeploy-bff-bluegreen.ps1

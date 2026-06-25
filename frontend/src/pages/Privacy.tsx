@@ -95,10 +95,17 @@ export default function Privacy() {
 
       <h2>8. Cookies</h2>
       <p>MatchForecast uses only cookies that are strictly necessary for the
-      product to work — primarily the session cookie Clerk sets when you sign
-      in. We do not use analytics, advertising, or tracking cookies at launch.
-      If we add any in future, we will surface a consent banner and let you
-      opt in or out per category before any non-essential cookie is set.</p>
+      product to work:</p>
+      <ul>
+        <li><strong>Clerk session cookie</strong> — set when you sign in, used to keep you signed in across page loads.</li>
+        <li><strong><code>mf_anon_id</code></strong> — set when you send your first chat-mode refinement without signing in. A random identifier paired with your IP address to count the 3 free messages we give anonymous visitors each day. No tracking, no profile, expires after 30 days. Once you sign in, the signed-in counter takes over and this cookie is no longer consulted.</li>
+      </ul>
+      <p>We do not use analytics, advertising, or tracking cookies. If we add
+      any in future, we will surface a consent banner and let you opt in or
+      out per category before any non-essential cookie is set.</p>
+      <p>The IP address associated with anonymous chat messages is stored on
+      the same row as the message + on the daily quota counter. Both are
+      pruned with the rest of the chat audit log after 7 days.</p>
 
       <h2>9. Age</h2>
       <p>MatchForecast is not directed at children under 13 and we do not

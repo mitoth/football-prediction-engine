@@ -18,6 +18,7 @@ public class WcDbContext(DbContextOptions<WcDbContext> options) : DbContext(opti
     public DbSet<SnapshotScore> SnapshotScores => Set<SnapshotScore>();
     public DbSet<Entitlement> Entitlements => Set<Entitlement>();
     public DbSet<QuotaLedger> QuotaLedger => Set<QuotaLedger>();
+    public DbSet<AnonQuotaLedger> AnonQuotaLedger => Set<AnonQuotaLedger>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -89,6 +90,17 @@ public class WcDbContext(DbContextOptions<WcDbContext> options) : DbContext(opti
             e.HasOne(x => x.BaselineVersion).WithMany()
                 .HasForeignKey(x => x.BaselineVersionId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.UserId, x.MatchId });
+            e.HasIndex(x => new { x.AnonId, x.Ip, x.MatchId });
+            // Chat mode: a refinement is either user-tied OR anon-tied — never both,
+            // never neither. Keeps audit + quota lookups unambiguous.
+            e.ToTable(t => t.HasCheckConstraint(
+                "ck_refinement_identity",
+                "(\"UserId\" IS NOT NULL) <> (\"AnonId\" IS NOT NULL)"));
+        });
+
+        b.Entity<AnonQuotaLedger>(e =>
+        {
+            e.HasKey(x => new { x.AnonId, x.Ip, x.QuotaDate });
         });
 
         b.Entity<PredictionSnapshot>(e =>

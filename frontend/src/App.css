@@ -18,9 +18,17 @@
   letter-spacing: -0.015em;
   color: var(--chalk);
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.45rem;
   line-height: 1;
+}
+.brand-logo {
+  /* Inline soccer-ball chalk mark next to the wordmark. currentColor lets the
+     stroke inherit the brand text color (chalk white on felt). */
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-right: 0.1rem;
+  flex-shrink: 0;
 }
 .brand-dot { color: var(--accent); font-size: 1.4rem; }
 .brand-tag {
@@ -32,7 +40,12 @@
   border: 1px solid var(--line-chalk);
   padding: 2px 7px;
   border-radius: 999px;
+  white-space: nowrap;
 }
+/* Clerk's SignInButton renders a <button> that inherits our global button
+   styles. On narrow mobile widths the auth area can squeeze, wrapping the
+   default "Sign in" text into a square block. Pin it to one line. */
+.auth button { white-space: nowrap; }
 .auth-note { color: var(--chalk-muted); font-size: 0.85rem; font-family: var(--font-mono); }
 
 .state {
@@ -238,6 +251,13 @@
   font-size: 0.68rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+.card-meta {
+  margin: 0 0 0.8rem;
+  text-align: center;
+  color: var(--chalk-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
 }
 .probs-label {
   margin: 1.3rem 0 0.4rem;
@@ -668,3 +688,329 @@
 [data-testid="refine-submit"]:hover:not(:disabled) {
   background: var(--coral-soft);
 }
+
+/* --- Chat-mode refinement (anon-friendly multi-turn) --- */
+.chat {
+  margin-top: 1.2rem;
+  background: var(--felt-deep);
+  border: 1px solid var(--line-chalk);
+  border-radius: 16px;
+  padding: 1.3rem;
+  display: grid;
+  gap: 0.7rem;
+  position: relative;
+}
+.chat::before {
+  content: "YOUR TAKE · CHAT WITH THE MODEL";
+  position: absolute;
+  top: -0.7rem; left: 1rem;
+  background: var(--felt);
+  color: var(--coral);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  padding: 0 0.5rem;
+  font-weight: 700;
+}
+.chat-thread {
+  display: grid;
+  gap: 0.6rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.chat-hint {
+  color: var(--chalk-muted);
+  font-family: var(--font-chalk);
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+.chat-bubble {
+  border-radius: 12px;
+  padding: 0.6rem 0.85rem;
+  font-family: var(--font-chalk);
+  font-size: 1rem;
+  max-width: 85%;
+  word-wrap: break-word;
+}
+.chat-user {
+  justify-self: end;
+  background: var(--paper);
+  color: var(--paper-ink);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.22);
+}
+.chat-assistant {
+  justify-self: start;
+  display: grid;
+  gap: 0.5rem;
+  max-width: 95%;
+}
+.chat-card {
+  border: 1px solid var(--line-chalk);
+  border-radius: 12px;
+  background: rgba(0,0,0,0.18);
+  padding: 0.85rem;
+}
+.chat-card-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+.chat-text {
+  margin: 0;
+  color: var(--chalk);
+  font-family: var(--font-chalk);
+  font-size: 0.98rem;
+  line-height: 1.45;
+}
+.chat-quota {
+  color: var(--chalk-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-align: right;
+}
+.chat-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+.chat-input {
+  font-family: var(--font-chalk);
+  font-size: 1.02rem;
+  border: 1px dashed var(--line-chalk);
+  border-radius: 8px;
+  padding: 0.65rem;
+  background: rgba(0,0,0,0.2);
+  color: var(--chalk);
+  resize: vertical;
+}
+.chat-input::placeholder { color: var(--chalk-muted); }
+.chat-input:focus { outline: none; border-color: var(--coral); border-style: solid; }
+.chat-input:disabled { opacity: 0.55; }
+.chat-send {
+  color: var(--coral);
+  border-color: var(--coral);
+  font-weight: 700;
+  padding: 0.65rem 1rem;
+}
+.chat-send:hover:not(:disabled) { background: var(--coral-soft); }
+.chat-signin-prompt {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: start;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 10px;
+  padding: 0.85rem;
+}
+.chat-signin-prompt p {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-chalk);
+  font-size: 1rem;
+}
+.chat-charcount {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--chalk-muted);
+  text-align: right;
+  letter-spacing: 0.05em;
+}
+.chat-charcount-warn { color: var(--coral); }
+
+/* Thinking indicator — same left-aligned slot as a real assistant turn.
+   Three dots pulse in sequence so the user sees the engine is working. */
+.chat-thinking-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--line-chalk);
+  background: rgba(0,0,0,0.18);
+  border-radius: 12px;
+  padding: 0.55rem 0.9rem;
+  width: max-content;
+}
+.chat-thinking-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  color: var(--chalk-muted);
+  text-transform: uppercase;
+}
+.chat-thinking-dots {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.chat-thinking-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--coral);
+  display: inline-block;
+  animation: chat-thinking-pulse 1.1s infinite ease-in-out;
+}
+.chat-thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
+.chat-thinking-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chat-thinking-pulse {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30%          { opacity: 1;    transform: translateY(-3px); }
+}
+
+/* --- Topbar nav links (Matches / Results) -------------------------------- */
+.topnav { display: flex; gap: 0.9rem; flex: 1; justify-content: center; }
+.topnav-link {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--chalk-muted);
+  padding: 0.35rem 0.1rem;
+  border-bottom: 1px dashed transparent;
+}
+.topnav-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* --- Results / accuracy page --------------------------------------------- */
+.results { display: grid; gap: 1.4rem; }
+.results-header h2 {
+  font-family: var(--font-display);
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.01em;
+}
+.results-subhead { color: var(--chalk-muted); margin: 0; font-size: 0.9rem; }
+
+.results-empty {
+  border: 1px dashed var(--line-chalk);
+  border-radius: 14px;
+  padding: 2rem 1.4rem;
+  text-align: center;
+  color: var(--chalk-muted);
+}
+.results-empty h2 {
+  font-family: var(--font-display);
+  color: var(--chalk);
+  margin: 0 0 0.5rem;
+}
+.results-empty p { margin: 0; }
+
+/* Aggregate counter cards. Four-up on desktop, two-up on phone. */
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+@media (min-width: 540px) {
+  .stat-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.stat-card {
+  background: var(--felt-deep);
+  border: 1px solid var(--line-chalk);
+  border-radius: 12px;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+}
+.stat-card-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-muted);
+}
+.stat-card-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.stat-card-value strong { font-weight: 700; }
+.stat-card-value span { color: var(--chalk-muted); font-size: 1rem; }
+.stat-card-bar {
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px;
+  height: 4px;
+  overflow: hidden;
+}
+.stat-card-bar span { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.stat-card-pct { font-family: var(--font-mono); font-size: 0.7rem; color: var(--chalk-muted); }
+
+.stat-card-exact     .stat-card-bar span { background: var(--accent); }
+.stat-card-winner    .stat-card-bar span { background: #7cc4a1; }
+.stat-card-goal_diff .stat-card-bar span { background: #b5d36a; }
+.stat-card-wrong     .stat-card-bar span { background: var(--coral); }
+
+/* Per-match rows. Same touch-area pattern as .match-row but with the
+   four-column data layout the accuracy page needs. */
+.result-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.55rem; }
+.result-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    "date  teams scores"
+    "league teams verdict";
+  align-items: center;
+  gap: 0.35rem 0.8rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--felt-deep);
+  border: 1px solid var(--line-chalk);
+  border-radius: 12px;
+  color: var(--chalk);
+}
+.result-row:hover { border-color: var(--accent); }
+.result-row-date {
+  grid-area: date;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--chalk-muted);
+  letter-spacing: 0.08em;
+}
+.result-row-league {
+  grid-area: league;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--chalk-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.result-row-teams {
+  grid-area: teams;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+.result-row-teams em { color: var(--chalk-muted); font-style: normal; padding: 0 0.25rem; }
+.result-row-scores {
+  grid-area: scores;
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+}
+.result-row-pred, .result-row-actual { display: grid; gap: 0.05rem; text-align: right; }
+.result-row-tag {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--chalk-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.result-row-score { font-family: var(--font-display); font-weight: 600; font-size: 1rem; }
+.result-row-pred .result-row-score { color: var(--chalk-muted); }
+
+/* Verdict pill. One per row. Colors map to the same hues the stat cards use
+   so the eye links a row's verdict to its bucket. */
+.verdict {
+  grid-area: verdict;
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.verdict-exact     { color: var(--accent); }
+.verdict-winner    { color: #7cc4a1; }
+.verdict-goal_diff { color: #b5d36a; }
+.verdict-wrong     { color: var(--coral); }

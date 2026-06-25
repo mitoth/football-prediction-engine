@@ -32,18 +32,7 @@ public sealed class ClaudeRefiner(
             {
                 new() { Text = RefinementPrompt.System, CacheControl = new CacheControlEphemeral() },
             },
-            Messages =
-            [
-                new()
-                {
-                    Role = Role.User,
-                    Content = new List<ContentBlockParam>
-                    {
-                        new TextBlockParam { Text = PredictionPrompt.TrustedContext(req) },
-                        new TextBlockParam { Text = PredictionPrompt.UntrustedBlock(req) },
-                    },
-                },
-            ],
+            Messages = BuildMessages(req),
             Thinking = new ThinkingConfigAdaptive(),
             OutputConfig = new OutputConfig
             {
@@ -77,6 +66,63 @@ public sealed class ClaudeRefiner(
             dto.Accepted, dto.Relevant, dto.RejectReason ?? "",
             new OutcomeProbs(dto.OutcomeProbs.Home, dto.OutcomeProbs.Draw, dto.OutcomeProbs.Away),
             dto.PredHome, dto.PredAway, dto.Why, citations);
+    }
+
+    // Single-shot mode (legacy /predict + initial /refine) packs TrustedContext +
+    // UntrustedBlock into one user turn. Chat mode unpacks the thread into
+    // alternating user/assistant turns; the first user turn keeps the trusted
+    // context + articles so the model anchors on the same data each round.
+    private static List<MessageParam> BuildMessages(PredictRequest req)
+    {
+        if (req.Messages is null || req.Messages.Count == 0)
+        {
+            return new List<MessageParam>
+            {
+                new()
+                {
+                    Role = Role.User,
+                    Content = new List<ContentBlockParam>
+                    {
+                        new TextBlockParam { Text = PredictionPrompt.TrustedContext(req) },
+                        new TextBlockParam { Text = PredictionPrompt.UntrustedBlock(req) },
+                    },
+                },
+            };
+        }
+
+        var messages = new List<MessageParam>();
+        var trustedPrefix = PredictionPrompt.TrustedContext(req)
+                          + PredictionPrompt.UntrustedBlock(req, includeUserNote: false);
+
+        for (var i = 0; i < req.Messages.Count; i++)
+        {
+            var turn = req.Messages[i];
+            var isFirst = i == 0;
+            var role = string.Equals(turn.Role, "assistant", StringComparison.OrdinalIgnoreCase)
+                ? Role.Assistant
+                : Role.User;
+
+            // The very first user turn carries TrustedContext + articles so the
+            // cached prefix anchors all subsequent turns. Each later user turn
+            // is just the natural-language note in a `<user_note>` envelope so
+            // the system prompt's injection guard still binds.
+            var text = role == Role.User
+                ? (isFirst
+                    ? trustedPrefix + $"<user_note>{turn.Text}</user_note>"
+                    : $"<user_note>{turn.Text}</user_note>")
+                : turn.Text;
+
+            messages.Add(new MessageParam
+            {
+                Role = role,
+                Content = new List<ContentBlockParam>
+                {
+                    new TextBlockParam { Text = text },
+                },
+            });
+        }
+
+        return messages;
     }
 
     private sealed record Dto(

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getMatch, type MatchDetail as Detail } from '../api'
-import RefinePanel from '../components/RefinePanel'
+import ChatPanel from '../components/ChatPanel'
 import { event } from '../analytics'
 
 const pct = (p: number) => `${Math.round(p * 100)}%`
@@ -15,11 +15,44 @@ function trim(s: string) {
   return s.length <= SNIPPET_MAX ? s : `${s.slice(0, SNIPPET_MAX).trimEnd()}…`
 }
 
+// Mirror of BaselineJob.RefreshHorizon in PredictionEngine. Once kickoff drops
+// inside this window AND the news pool grew, the next hourly Quartz tick
+// rebuilds the baseline. Keep in sync with the backend constant.
+const REFRESH_HORIZON_MS = 1 * 24 * 60 * 60 * 1000
+
+function relativeFromNow(iso: string | null, now: number): string {
+  if (!iso) return '—'
+  const diffMs = new Date(iso).getTime() - now
+  const absMin = Math.round(Math.abs(diffMs) / 60000)
+  const future = diffMs > 0
+  if (absMin < 1) return 'any moment'
+  if (absMin < 60) return future ? `in ${absMin} min` : `${absMin} min ago`
+  const absH = Math.round(absMin / 60)
+  if (absH < 24) return future ? `in ${absH} h` : `${absH} h ago`
+  const absD = Math.round(absH / 24)
+  return future ? `in ${absD} d` : `${absD} d ago`
+}
+
+// Countdown to the next possible refresh of an existing baseline. Outside the
+// T-1d window we count down to the window opening; inside it the engine fires
+// hourly so the truthful upper bound is "<60 min". Returns null once kickoff
+// has passed (no more updates expected).
+function nextRefreshEta(kickoffIso: string, now: number): string | null {
+  const kickoffMs = new Date(kickoffIso).getTime()
+  if (kickoffMs <= now) return null
+  const windowStartMs = kickoffMs - REFRESH_HORIZON_MS
+  if (now < windowStartMs) return relativeFromNow(new Date(windowStartMs).toISOString(), now)
+  return 'in <60 min'
+}
+
 export default function MatchDetail() {
   const { id } = useParams<{ id: string }>()
   const [match, setMatch] = useState<Detail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showCitations, setShowCitations] = useState(false)
+  // Ticking clock so the "Prediction from X ago · Next update in Y" line
+  // stays current without a full reload.
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     if (!id) return
@@ -32,6 +65,11 @@ export default function MatchDetail() {
       })
     }).catch((e) => setError(String(e)))
   }, [id])
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(t)
+  }, [])
 
   if (error) return <p className="state" data-testid="error">Couldn’t load match: {error}</p>
   if (!match) return <p className="state" data-testid="loading">Loading…</p>
@@ -62,6 +100,12 @@ export default function MatchDetail() {
         <>
         <section className="baseline-card" data-testid="baseline-card">
           <p className="card-eyebrow">Predicted final score · not the actual result</p>
+          <p className="card-meta" data-testid="prediction-age">
+            Prediction from {relativeFromNow(b.generatedAt, now)}
+            {nextRefreshEta(match.kickoffUtc, now) && (
+              <> · Next update {nextRefreshEta(match.kickoffUtc, now)}</>
+            )}
+          </p>
           <div className="scoreline" data-testid="scoreline" aria-label="Predicted final score">
             {b.predHome}<span>–</span>{b.predAway}
           </div>
@@ -123,7 +167,7 @@ export default function MatchDetail() {
 
           <p className="ver">Baseline v{b.version} · AI prediction by Claude</p>
         </section>
-        <RefinePanel matchId={match.id} baseline={b} />
+        <ChatPanel matchId={match.id} baseline={b} />
         <p className="disclaimer" data-testid="disclaimer">
           All numbers above are model predictions, not the real result.
           For entertainment — not betting advice.

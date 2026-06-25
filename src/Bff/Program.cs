@@ -26,11 +26,18 @@ builder.Services.AddHttpClient<PredictionEngineClient>(c =>
     c.BaseAddress = new Uri("https+http://prediction-engine"));
 
 // The Vite SPA is a separate origin (Aspire assigns it its own port), so the
-// browser needs CORS to reach the BFF. Auth is a bearer JWT (not cookies), so
-// any-origin stays safe — no AllowCredentials, nothing rides ambient session.
+// browser needs CORS to reach the BFF. Chat mode rides on the mf_anon_id
+// cookie for unsigned-in users, which forces `credentials: 'include'` on the
+// fetch — and browsers refuse the wildcard `Access-Control-Allow-Origin: *`
+// with credentials. Switch to an explicit allowlist + AllowCredentials so the
+// SPA can send cookies; non-credentialed reads (anonymous /matches, /me probe)
+// still work from these origins.
 const string WebCors = "web";
+var corsOrigins = (builder.Configuration["Cors:AllowedOrigins"]
+        ?? "https://wcaipredictions.com,https://www.wcaipredictions.com,http://localhost:5173")
+    .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 builder.Services.AddCors(o => o.AddPolicy(WebCors, p =>
-    p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+    p.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
 // Per-IP fixed-window limit on the refinement POST endpoint. The per-user
 // quota in QuotaService already enforces the 3-a-day business rule; this is
@@ -71,6 +78,10 @@ app.MapMatchEndpoints();
 
 // Phase 4: authed refinement hook (quota-gated POST, free PUT/DELETE, /me).
 app.MapRefineEndpoints();
+
+// Phase 4.5: chat-mode refinement (anonymous-friendly, multi-turn). New surface
+// — keeps the legacy /refine endpoints around for one release.
+app.MapChatEndpoints();
 
 // GDPR Articles 15 + 17: data export + erasure for the authed user.
 app.MapGdprEndpoints();

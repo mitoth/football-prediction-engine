@@ -41,6 +41,7 @@ export interface BaselineView {
   predAway: number
   why: string
   citations: Citation[]
+  generatedAt: string
 }
 
 export interface MatchDetail {
@@ -64,7 +65,39 @@ export const getMatches = () => getJson<MatchListItem[]>('/matches')
 export const getMatch = (id: string) => getJson<MatchDetail>(`/matches/${id}`)
 export const getSyncStatus = () => getJson<SyncStatus>('/meta/sync-status')
 
-// --- Phase 4: authed refinement ---
+// --- Results / accuracy page ------------------------------------------------
+
+export type Verdict = 'exact' | 'goal_diff' | 'winner' | 'wrong'
+
+export interface MatchResultRow {
+  matchId: string
+  league: string
+  homeTeam: string
+  awayTeam: string
+  kickoffUtc: string
+  predHome: number
+  predAway: number
+  actualHome: number
+  actualAway: number
+  verdict: Verdict
+}
+
+export interface ResultsAggregate {
+  total: number
+  exactScore: number
+  correctWinner: number
+  correctGoalDifference: number
+  wrong: number
+}
+
+export interface ResultsPageView {
+  aggregate: ResultsAggregate
+  rows: MatchResultRow[]
+}
+
+export const getResults = () => getJson<ResultsPageView>('/matches/results')
+
+// --- Phase 4: authed refinement (legacy single-shot — kept for one release) ---
 
 export interface Chip { inputType: string; text: string | null; url: string | null; status: string }
 export interface Refined {
@@ -108,3 +141,41 @@ export const putRefine = (id: string, body: RefineInput, token: Token) =>
 
 export const deleteRefine = (id: string, token: Token) =>
   authed<RefineResponse>(`/matches/${id}/refine`, token, { method: 'DELETE' })
+
+// --- Phase 4.5: chat-mode refinement (anon-friendly multi-turn) -------------
+
+export interface ChatMessage { role: 'user' | 'assistant'; text: string }
+export interface ChatRequest { messages: ChatMessage[] }
+export interface ChatResponse {
+  status: string             // success | rejected_gibberish | off_topic | quota_exhausted | no_baseline | invalid_thread
+  applied: boolean
+  quotaRemaining: number
+  tier: string               // anon | free | matchday | world_cup_tournament
+  refined: Refined | null
+  message: string | null
+}
+export interface ChatStatus { tier: string; quotaRemaining: number; userMessageMax: number }
+
+// Both /chat and /chat-status need the anon cookie to round-trip on
+// cross-origin requests (SPA on wcaipredictions.com, BFF on
+// api.wcaipredictions.com), hence `credentials: 'include'`.
+async function chatFetch<T>(path: string, token: Token, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${apiUrl}${path}`, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+  if (!res.ok && res.status !== 429 && res.status !== 409 && res.status !== 400)
+    throw new Error(`${res.status} ${res.statusText}`)
+  return res.json() as Promise<T>
+}
+
+export const getChatStatus = (id: string, token: Token) =>
+  chatFetch<ChatStatus>(`/matches/${id}/chat-status`, token)
+
+export const postChat = (id: string, body: ChatRequest, token: Token) =>
+  chatFetch<ChatResponse>(`/matches/${id}/chat`, token,
+    { method: 'POST', body: JSON.stringify(body) })

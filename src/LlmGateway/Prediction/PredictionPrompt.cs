@@ -75,13 +75,16 @@ internal static class PredictionPrompt
     }
 
     // Untrusted evidence — delimited so the system prompt can quarantine it.
-    public static string UntrustedBlock(PredictRequest r)
+    // In chat mode the user notes ride the Anthropic Messages array directly
+    // (one note per user-role turn), so callers pass `includeUserNote: false`
+    // to leave them out of this block.
+    public static string UntrustedBlock(PredictRequest r, bool includeUserNote = true)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<untrusted_data>");
         foreach (var a in r.Articles)
             sb.AppendLine($"[article:{a.Id}] {a.Headline} — {a.Snippet}");
-        if (!string.IsNullOrWhiteSpace(r.UserInput))
+        if (includeUserNote && !string.IsNullOrWhiteSpace(r.UserInput))
             sb.AppendLine($"[user_note] {r.UserInput}");
         sb.AppendLine("</untrusted_data>");
         return sb.ToString();

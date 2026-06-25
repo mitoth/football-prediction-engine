@@ -4,14 +4,20 @@ import MatchList from './pages/MatchList'
 import MatchDetail from './pages/MatchDetail'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
+import Results from './pages/Results'
 import CookieBanner from './components/CookieBanner'
+import Logo from './components/Logo'
 import './App.css'
 
 export default function App({ clerkConfigured }: { clerkConfigured: boolean }) {
   return (
     <div className="app">
       <header className="topbar">
-        <Link to="/" className="brand">MatchForecast<span className="brand-dot">·</span><span className="brand-tag">WC 2026</span></Link>
+        <Link to="/" className="brand"><Logo className="brand-logo" />MatchForecast<span className="brand-dot">·</span><span className="brand-tag">WC 2026</span></Link>
+        <nav className="topnav">
+          <Link to="/" className="topnav-link">Matches</Link>
+          <Link to="/results" className="topnav-link">Results</Link>
+        </nav>
         <div className="auth">
           {clerkConfigured ? (
             <>
@@ -29,6 +35,7 @@ export default function App({ clerkConfigured }: { clerkConfigured: boolean }) {
         <Routes>
           <Route path="/" element={<MatchList />} />
           <Route path="/match/:id" element={<MatchDetail />} />
+          <Route path="/results" element={<Results />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
         </Routes>

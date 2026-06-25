@@ -129,7 +129,13 @@ public class BaselineCitation
 public class Refinement
 {
     public Guid Id { get; set; }
-    public Guid UserId { get; set; }
+    // Exactly one of UserId / AnonId is set per row (DB CHECK constraint). The
+    // anon path was added for chat mode so first-time visitors can try
+    // refinement without signing in. Anon turns are tagged by the
+    // (AnonId, Ip) pair the BFF resolves from the cookie + X-Forwarded-For.
+    public Guid? UserId { get; set; }
+    public Guid? AnonId { get; set; }
+    public string? Ip { get; set; }
     public Guid MatchId { get; set; }
     public Guid BaselineVersionId { get; set; } // FK -> Baseline.Id forked from
     public string InputType { get; set; } = null!; // text | url
@@ -148,7 +154,7 @@ public class Refinement
     public string? RefinedWhy { get; set; }
     public string? RefinedCitations { get; set; }  // jsonb string[] of article ids
 
-    public AppUser User { get; set; } = null!;
+    public AppUser? User { get; set; }
     public Match Match { get; set; } = null!;
     public Baseline BaselineVersion { get; set; } = null!;
 }
@@ -207,4 +213,15 @@ public class QuotaLedger
     public int SuccessCount { get; set; }
 
     public AppUser User { get; set; } = null!;
+}
+
+// Quota counter for chat-mode users who haven't signed in. Composite PK
+// (AnonId, Ip, Date) — the IP is part of the key so a leaked cookie shared
+// across hosts gets its own counter per host (extra abuse signal too).
+public class AnonQuotaLedger
+{
+    public Guid AnonId { get; set; }
+    public string Ip { get; set; } = null!;
+    public DateOnly QuotaDate { get; set; }
+    public int SuccessCount { get; set; }
 }

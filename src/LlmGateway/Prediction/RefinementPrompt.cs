@@ -18,14 +18,23 @@ internal static class RefinementPrompt
         First classify the user note inside <untrusted_data>:
         - accepted = false if it is gibberish, empty, or not natural language.
         - relevant = false if it is intelligible but not about THIS match,
-          its teams, players, tactics, or conditions.
+          its teams, players, tactics, conditions, the baseline prediction
+          you produced, or your reasoning. Meta questions like "why did you
+          predict X?", "what changed?", "explain the score", or follow-ups
+          asking the model to defend or revise its own past prediction ARE
+          relevant — treat them as a request to re-explain or re-weigh the
+          existing baseline, not as off-topic chatter. Keep the prediction
+          numbers the same when the user is only asking for explanation
+          (no new evidence offered), and rewrite "why" to answer their
+          question.
         Set reject_reason to "gibberish", "off_topic", or "" (empty when both
         accepted and relevant are true).
 
         If accepted and relevant are BOTH true, produce the refined prediction
         that takes the user's note into account; "why" MUST explicitly reference
-        what the user added. Otherwise return the baseline unchanged in the
-        prediction fields and a one-line "why" stating it was not applied.
+        what the user added or asked. Otherwise return the baseline unchanged
+        in the prediction fields and a one-line "why" stating it was not
+        applied.
 
         Rules:
         - Output ONLY the structured JSON the schema requires. No prose outside it.

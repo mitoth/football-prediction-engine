@@ -37,17 +37,22 @@ app.MapDefaultEndpoints();
 app.MapGet("/", () => "WcPredictions Prediction Engine");
 
 // Compute-only: BFF has already verified auth + quota and URL-extracted the
-// note. Persistence of the Refinement row + snapshot is the BFF's job.
+// note. Persistence of the Refinement row + snapshot is the BFF's job. The
+// optional `Messages` array carries multi-turn chat history when the BFF used
+// the /chat endpoint; otherwise UserNote is the single-shot legacy path.
 app.MapPost("/refine", async (
     RefineHttpRequest req, RefinementService svc, CancellationToken ct) =>
 {
-    var result = await svc.RefineAsync(req.MatchId, req.BaselineId, req.UserNote, ct);
+    var result = await svc.RefineAsync(
+        req.MatchId, req.BaselineId, req.UserNote, req.Messages, ct);
     return Results.Ok(result);
 });
 
 app.Run();
 
-public sealed record RefineHttpRequest(Guid MatchId, Guid BaselineId, string UserNote);
+public sealed record RefineHttpRequest(
+    Guid MatchId, Guid BaselineId, string UserNote,
+    IReadOnlyList<ChatTurn>? Messages = null);
 
 // Exposed so the Phase 4 integration test can drive the engine in-process.
 public partial class Program;

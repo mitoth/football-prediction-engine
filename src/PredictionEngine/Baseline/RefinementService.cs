@@ -22,8 +22,13 @@ public sealed class RefinementService(
 {
     private const int ArticleContextSize = 8;
 
+    public Task<RefineResult> RefineAsync(
+        Guid matchId, Guid baselineId, string userNote, CancellationToken ct) =>
+        RefineAsync(matchId, baselineId, userNote, messages: null, ct);
+
     public async Task<RefineResult> RefineAsync(
-        Guid matchId, Guid baselineId, string userNote, CancellationToken ct)
+        Guid matchId, Guid baselineId, string userNote,
+        IReadOnlyList<ChatTurn>? messages, CancellationToken ct)
     {
         var match = await db.Matches
             .Include(m => m.HomeTeam).Include(m => m.AwayTeam).Include(m => m.League)
@@ -51,7 +56,8 @@ public sealed class RefinementService(
             match.HomeTeam.Name, match.AwayTeam.Name, match.League.Name,
             match.KickoffUtc, HomeForm: null, AwayForm: null, Lineups: null,
             articles.Select(a => new ArticleRef(a.Id.ToString(), a.Headline, a.Snippet)).ToList(),
-            UserInput: userNote, BaselineSummary: baselineSummary);
+            UserInput: userNote, BaselineSummary: baselineSummary,
+            Messages: messages);
 
         var resp = await gateway.RefineAsync(req, ct);
 

@@ -163,9 +163,7 @@ export default function MatchList() {
                             <span className="prediction-status">
                               {m.hasBaseline
                                 ? (
-                                  <span className="badge" title={m.baselineGeneratedAt ?? ''}>
-                                    From {relativeFromNow(m.baselineGeneratedAt, now)}
-                                  </span>
+                                  <span className="badge">Prediction ready</span>
                                 )
                                 : (() => {
                                     const eta = nextBaselineEta(m.kickoffUtc, now)

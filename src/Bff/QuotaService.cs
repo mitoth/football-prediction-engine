@@ -3,14 +3,14 @@ using WcPredictions.Data;
 
 namespace WcPredictions.Bff;
 
-// Free = 3 successful refinements/day; pass holders unlimited but with a
-// 30/day fair-use ceiling (passes arrive in Phase 5 — the cap is wired now).
-// Only successful+relevant refinements consume a credit; gibberish / off-topic
-// never does, so the counter never feels adversarial.
+// Chat mode quota.
+//   Anonymous (no login) → 3 messages/day, keyed by (mf_anon_id cookie, IP).
+//   Signed-in free       → 5 messages/day, keyed by UserId.
+//   Pass holders         → 30/day fair-use ceiling (Phase 5).
+// Only successful+relevant turns consume a credit; gibberish / off-topic don't.
 //
-// QuotaLedger is the durable authority (resets implicitly: a new day = a new
-// (UserId, QuotaDate) row). Reset is midnight in the user's account timezone,
-// UTC fallback — matches the design.
+// QuotaLedger is the durable authority for signed-in users; AnonQuotaLedger for
+// anonymous. Both reset implicitly at the day boundary (new row per date).
 //
 // PHASE-5 STRIPE TODO: the 30/day cap must be disclosed on the payment page
 // *before* the user clicks Pay. Worst-case unchecked abuse over a 35-day WC
@@ -20,9 +20,9 @@ namespace WcPredictions.Bff;
 public sealed class QuotaService(WcDbContext db)
 {
     // Tier values: "free" | "matchday" | "world_cup_tournament". Anything that
-    // is not "free" gets the paid fair-use ceiling. If a new paid tier is
-    // added later, default it to the paid cap unless deliberately changed.
-    public const int FreeDailyCap = 3;
+    // is not "free" gets the paid fair-use ceiling.
+    public const int AnonDailyCap = 3;
+    public const int FreeDailyCap = 5;
     public const int PaidDailyCap = 30;
     public static int Cap(string tier) => tier == "free" ? FreeDailyCap : PaidDailyCap;
 
@@ -52,6 +52,27 @@ public sealed class QuotaService(WcDbContext db)
             .SingleOrDefaultAsync(q => q.UserId == user.Id && q.QuotaDate == date, ct);
         if (row is null)
             db.QuotaLedger.Add(new QuotaLedger { UserId = user.Id, QuotaDate = date, SuccessCount = 1 });
+        else
+            row.SuccessCount++;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> RemainingAnonAsync(Guid anonId, string ip, CancellationToken ct)
+    {
+        var date = Today(null);
+        var used = await db.AnonQuotaLedger
+            .Where(q => q.AnonId == anonId && q.Ip == ip && q.QuotaDate == date)
+            .Select(q => (int?)q.SuccessCount).FirstOrDefaultAsync(ct) ?? 0;
+        return Math.Max(0, AnonDailyCap - used);
+    }
+
+    public async Task ConsumeAnonAsync(Guid anonId, string ip, CancellationToken ct)
+    {
+        var date = Today(null);
+        var row = await db.AnonQuotaLedger
+            .SingleOrDefaultAsync(q => q.AnonId == anonId && q.Ip == ip && q.QuotaDate == date, ct);
+        if (row is null)
+            db.AnonQuotaLedger.Add(new AnonQuotaLedger { AnonId = anonId, Ip = ip, QuotaDate = date, SuccessCount = 1 });
         else
             row.SuccessCount++;
         await db.SaveChangesAsync(ct);
