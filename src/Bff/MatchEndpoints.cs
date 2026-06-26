@@ -173,17 +173,26 @@ public static class MatchEndpoints
         // Matches without a PredictionSnapshot are excluded: the page is
         // strictly about predictions-vs-reality, and a finished match we never
         // predicted has nothing to score.
+        //
+        // Scope is limited to FIFA World Cup matches — the app's whole brand
+        // is WC predictions, and showing UCL/PL backfill matches alongside
+        // dilutes the marketing message. League name is matched by substring
+        // so both "FIFA World Cup" and "World Cup" rows are caught. Ordering
+        // is by kickoff DESC so the most recent match sits at the top; using
+        // Result.SettledAt would scramble the list because the bulk-backfill
+        // wrote every row at the same instant.
         app.MapGet("/matches/results", async (WcDbContext db, CancellationToken ct) =>
         {
             var raw = await (
                 from m in db.Matches
                 where m.Result != null
+                where m.League.Name.Contains("World Cup")
                 let snap = db.PredictionSnapshots
                              .Where(s => s.MatchId == m.Id)
                              .OrderByDescending(s => s.CapturedAt)
                              .FirstOrDefault()
                 where snap != null
-                orderby m.Result!.SettledAt descending
+                orderby m.KickoffUtc descending
                 select new
                 {
                     m.Id,

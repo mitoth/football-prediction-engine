@@ -8,10 +8,19 @@ function dateLabel(iso: string) {
   return d.toLocaleString(undefined, { day: 'numeric', month: 'short' })
 }
 
+// Per-row pill: strictest tier the row qualifies for. The aggregate cards
+// above are cumulative (an exact score also counts as a correct goal diff
+// and a correct 1/X/2), but each row only displays one pill — the
+// strictest one it earned.
+//
+//   Exact      — predicted scoreline matched (2-1 → 2-1)
+//   Margin     — same goal difference, scoreline differs (2-1 → 3-2)
+//   1/X/2      — same outcome (W/D/L), margin differs (1-0 → 3-1)
+//   Wrong      — opposite outcome (home win predicted, draw or away win actual)
 const VERDICT_LABEL: Record<Verdict, string> = {
-  exact: 'Exact score',
-  goal_diff: 'Goal difference',
-  winner: 'Winner',
+  exact: 'Exact',
+  goal_diff: 'Margin',
+  winner: '1/X/2',
   wrong: 'Wrong',
 }
 
@@ -94,11 +103,16 @@ export default function Results() {
         </p>
       </header>
 
+      {/* Cumulative buckets. An exact score also counts as a correct 1/X/2
+          AND a correct goal difference, so the three "correct" cards are
+          nested precision tiers, not disjoint counts. "Wrong" is the
+          inverse of 1/X/2 — match outcomes the model called the opposite
+          way (or called a draw when someone won, etc). */}
       <div className="stat-cards" data-testid="stat-cards">
-        <StatCard label="Exact score"     hit={a.exactScore}            total={a.total} tone="exact" />
-        <StatCard label="Correct winner"  hit={a.correctWinner}         total={a.total} tone="winner" />
-        <StatCard label="Correct goal diff" hit={a.correctGoalDifference} total={a.total} tone="goal_diff" />
-        <StatCard label="Wrong winner"    hit={a.wrong}                 total={a.total} tone="wrong" />
+        <StatCard label="Exact score"             hit={a.exactScore}            total={a.total} tone="exact" />
+        <StatCard label="Correct 1/X/2"           hit={a.correctWinner}         total={a.total} tone="winner" />
+        <StatCard label="Correct goal difference" hit={a.correctGoalDifference} total={a.total} tone="goal_diff" />
+        <StatCard label="Wrong"                   hit={a.wrong}                 total={a.total} tone="wrong" />
       </div>
 
       <ul className="result-list" data-testid="result-list">
