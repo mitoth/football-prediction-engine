@@ -15,8 +15,8 @@ builder.AddNpgsqlDbContext<WcDbContext>("wcdb");
 
 builder.Services.Configure<ApiFootballOptions>(
     builder.Configuration.GetSection(ApiFootballOptions.Section));
-builder.Services.Configure<NewsDataOptions>(
-    builder.Configuration.GetSection(NewsDataOptions.Section));
+builder.Services.Configure<RssOptions>(
+    builder.Configuration.GetSection(RssOptions.Section));
 
 // Typed HttpClients. ServiceDefaults adds standard resilience to all clients.
 builder.Services.AddHttpClient<ApiFootballClient>((sp, c) =>
@@ -26,11 +26,9 @@ builder.Services.AddHttpClient<ApiFootballClient>((sp, c) =>
     if (!string.IsNullOrEmpty(o.ApiKey))
         c.DefaultRequestHeaders.Add("x-apisports-key", o.ApiKey);
 });
-builder.Services.AddHttpClient<NewsDataClient>((sp, c) =>
-{
-    var o = sp.GetRequiredService<IOptions<NewsDataOptions>>().Value;
-    c.BaseAddress = new Uri(o.BaseUrl);
-});
+// No base address/key: feed URLs are absolute and curated. ServiceDefaults
+// still layers standard resilience onto this client.
+builder.Services.AddHttpClient<FootballRssClient>();
 
 builder.Services.AddScoped<FixtureSyncService>();
 builder.Services.AddScoped<NewsSyncService>();

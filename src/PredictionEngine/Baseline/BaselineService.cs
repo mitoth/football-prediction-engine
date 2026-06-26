@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using WcPredictions.Data;
@@ -29,12 +30,20 @@ public sealed class BaselineService(
     // both to feed the LLM in BuildAsync and to detect news growth in the
     // refresh path (BaselineJob). Keep these in sync — otherwise the counts
     // diverge and we either refresh too eagerly or starve.
-    public static IQueryable<Article> RelevantArticles(WcDbContext db, string home, string away) =>
-        db.Articles.Where(a =>
-            EF.Functions.ILike(a.Headline, $"%{home}%") ||
-            EF.Functions.ILike(a.Headline, $"%{away}%") ||
-            EF.Functions.ILike(a.Snippet,  $"%{home}%") ||
-            EF.Functions.ILike(a.Snippet,  $"%{away}%"));
+    public static IQueryable<Article> RelevantArticles(WcDbContext db, string home, string away)
+    {
+        // Word-boundary regex, not %name% ILIKE: a substring match leaks news on
+        // short national-team names — "Togo" hits "together", "Mali" hits
+        // "Somalia". \y anchors to whole words. Npgsql translates Regex.IsMatch
+        // with IgnoreCase to the Postgres `~*` operator (no client-side eval).
+        var homePat = $@"\y{Regex.Escape(home)}\y";
+        var awayPat = $@"\y{Regex.Escape(away)}\y";
+        return db.Articles.Where(a =>
+            Regex.IsMatch(a.Headline, homePat, RegexOptions.IgnoreCase) ||
+            Regex.IsMatch(a.Headline, awayPat, RegexOptions.IgnoreCase) ||
+            Regex.IsMatch(a.Snippet,  homePat, RegexOptions.IgnoreCase) ||
+            Regex.IsMatch(a.Snippet,  awayPat, RegexOptions.IgnoreCase));
+    }
 
     // Read-through: a cached baseline is returned WITHOUT calling the gateway
     // (the §16 "second request = Redis hit, no second LLM call" guarantee).
@@ -57,25 +66,21 @@ public sealed class BaselineService(
             ?? throw new InvalidOperationException($"Match {matchId} not found");
 
         // Pick articles that mention either team in the headline or snippet.
-        // Generic "football OR soccer" feed dominates the global Article table —
+        // The general football RSS feeds dominate the global Article table —
         // without this filter, Claude gets unrelated news and cites nothing.
-        // Falls back to the newest articles if no team-specific hit exists.
+        // No fallback to the global newest: feeding other teams' news is worse
+        // than feeding none, so an empty set means Claude predicts from the
+        // matchup alone (the user asked for news strictly about these teams).
         var home = match.HomeTeam.Name;
         var away = match.AwayTeam.Name;
         var relevantQ = RelevantArticles(db, home, away);
         // Total count drives the refresh decision (see BaselineJob); the
         // capped slice goes to the LLM.
         var relevantCount = await relevantQ.CountAsync(ct);
-        var relevant = await relevantQ
+        var articles = await relevantQ
             .OrderByDescending(a => a.FetchedAt)
             .Take(ArticleContextSize)
             .ToListAsync(ct);
-        var articles = relevant.Count > 0
-            ? relevant
-            : await db.Articles
-                .OrderByDescending(a => a.FetchedAt)
-                .Take(ArticleContextSize)
-                .ToListAsync(ct);
 
         var req = new PredictRequest(
             match.HomeTeam.Name, match.AwayTeam.Name, match.League.Name,

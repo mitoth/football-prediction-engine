@@ -39,7 +39,13 @@ public sealed class RefinementService(
             .SingleOrDefaultAsync(b => b.Id == baselineId && b.MatchId == matchId, ct)
             ?? throw new InvalidOperationException($"Baseline {baselineId} not found for match {matchId}");
 
-        var articles = await db.Articles
+        // Only news that names one of THIS match's teams — never the global
+        // newest. The RSS feeds are general football; an unfiltered Take(8)
+        // hands Claude articles about other fixtures and it refines on noise.
+        // Shares BaselineService.RelevantArticles so baseline + refine see the
+        // same relevance rule. Empty is fine: refine on the user note alone.
+        var articles = await BaselineService
+            .RelevantArticles(db, match.HomeTeam.Name, match.AwayTeam.Name)
             .OrderByDescending(a => a.FetchedAt)
             .Take(ArticleContextSize)
             .ToListAsync(ct);

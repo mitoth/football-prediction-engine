@@ -5,13 +5,13 @@ using WcPredictions.Ingestion.News;
 
 namespace WcPredictions.Ingestion.Sync;
 
-// Fetches NewsData.io per configured query (commercial-licensed, paid) and
-// upserts metadata-only Article rows, deduplicated by URL (unique-indexed).
-// Idempotent: re-running adds only genuinely new items.
+// Pulls each curated football RSS feed and upserts metadata-only Article rows,
+// deduplicated by URL (also unique-indexed). Idempotent: re-running adds only
+// genuinely new items.
 public sealed class NewsSyncService(
-    NewsDataClient client,
+    FootballRssClient rss,
     WcDbContext db,
-    IOptions<NewsDataOptions> options,
+    IOptions<RssOptions> options,
     ILogger<NewsSyncService> log)
 {
     public async Task SyncAsync(CancellationToken ct)
@@ -21,9 +21,9 @@ public sealed class NewsSyncService(
         var known = new HashSet<string>(seen);
         var added = 0;
 
-        foreach (var query in opt.Queries)
+        foreach (var feed in opt.Feeds)
         {
-            var articles = await client.SearchAsync(query, opt, ct);
+            var articles = await rss.FetchAsync(feed, opt.MaxItemsPerFeed, ct);
             foreach (var a in articles)
             {
                 if (!known.Add(a.Url)) continue; // dedupe by URL
@@ -39,7 +39,7 @@ public sealed class NewsSyncService(
                 });
                 added++;
             }
-            log.LogInformation("NewsData query '{Query}': {Count} items", query, articles.Count);
+            log.LogInformation("RSS feed '{Outlet}': {Count} items", feed.Outlet, articles.Count);
         }
 
         await db.SaveChangesAsync(ct);
