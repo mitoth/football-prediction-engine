@@ -72,13 +72,13 @@ jobs:
           azd config set state.remote.config.accountName volu3dnj7kwrcz7s
           azd config set state.remote.config.containerName azd-state
 
-      - name: azd provision (idempotent — no-op if infra already exists)
-        env:
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
-          AZURE_LOCATION: northeurope
-        run: azd provision --no-prompt
-
+      # Deploy-only (no provision) — by design. The infra is stable and the
+      # provision template creates role assignments, which need
+      # Microsoft.Authorization/roleAssignments/write. We deliberately keep the
+      # deploy SP at Contributor (least privilege) rather than grant it User
+      # Access Administrator. This matches the established local flow, which is
+      # also `azd deploy`, not `azd up`/`azd provision`. When infra actually
+      # changes, run `azd provision` locally (where the user has those rights).
       - name: azd deploy
         env:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
