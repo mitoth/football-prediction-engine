@@ -44,12 +44,33 @@ jobs:
       - name: Install azd
         uses: Azure/setup-azd@v2
 
-      - name: Azure login (federated OIDC)
+      - name: Azure login (federated OIDC) — azd
         run: |
           azd auth login \
             --client-id "${{ secrets.AZURE_CLIENT_ID }}" \
             --federated-credential-provider github \
             --tenant-id "${{ secrets.AZURE_TENANT_ID }}"
+
+      # The blue/green pre/postdeploy hooks call `az account get-access-token`
+      # (ARM REST for the revision snapshot + api.wcaipredictions.com rebind).
+      # `azd auth login` does NOT authenticate the az CLI, so without this the
+      # hooks fail — and a failed postdeploy leaves the custom domain unbound.
+      - name: Azure login (federated OIDC) — az CLI (for deploy hooks)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Point azd at the remote env state (Azure Blob, seeded from the laptop).
+      # Without it the runner has no env state and `azd provision` would create
+      # a DUPLICATE environment with new resource suffixes instead of updating
+      # live prod (azd assigns random suffixes on a fresh env).
+      - name: Configure azd remote state
+        run: |
+          azd config set state.remote.backend AzureBlobStorage
+          azd config set state.remote.config.accountName volu3dnj7kwrcz7s
+          azd config set state.remote.config.containerName azd-state
 
       - name: azd provision (idempotent — no-op if infra already exists)
         env:

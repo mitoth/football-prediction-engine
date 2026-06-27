@@ -42,6 +42,10 @@ $currentRev = $current.name
 
 $envDir = Split-Path $PSScriptRoot -Parent
 $snapshotPath = Join-Path $envDir '.azure/matchforecast-prod/.previous-bff-revision'
+# On a clean CI runner the gitignored .azure/<env> dir may not exist yet — the
+# env state lives in remote (blob) storage. Ensure the parent dir before write.
+$snapshotDir = Split-Path $snapshotPath -Parent
+if (-not (Test-Path $snapshotDir)) { New-Item -ItemType Directory -Path $snapshotDir -Force | Out-Null }
 $currentRev | Out-File -FilePath $snapshotPath -NoNewline -Encoding ascii
 
 Write-Host "[predeploy] Snapshotted previous revision -> $currentRev"
