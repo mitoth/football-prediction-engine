@@ -18,8 +18,9 @@ using WireMock.Server;
 
 namespace WcPredictions.Bff.Tests;
 
-// §16 Phase 4 exit (backend): anonymous refine is 401; a free user gets 3
-// successful refinements then the 4th is blocked; gibberish costs no credit;
+// §16 Phase 4 exit (backend): anonymous refine is 401; a free user gets
+// QuotaService.FreeDailyCap successful refinements then the next is blocked;
+// gibberish costs no credit;
 // editing the chip is a free re-run; removing it reverts; URL input is
 // rejected with 400 (URL refinements removed for legal reasons, §4/§5).
 // Real BFF via WebApplicationFactory + Testcontainers Postgres; the engine is
@@ -164,24 +165,26 @@ public class RefineEndpointsTests : IAsyncLifetime
 
         var c = Client("free");
 
-        // 2. /me before any refinement: free, 3 left, no chip.
+        // 2. /me before any refinement: free, full quota left, no chip.
+        // Cap-relative so a FreeDailyCap change can't silently rot this test.
+        var cap = QuotaService.FreeDailyCap;
         var me = await c.GetFromJsonAsync<JsonElement>($"/matches/{_matchId}/me", J);
         Assert.Equal("free", me.GetProperty("tier").GetString());
-        Assert.Equal(3, me.GetProperty("quotaRemaining").GetInt32());
+        Assert.Equal(cap, me.GetProperty("quotaRemaining").GetInt32());
         Assert.Equal(JsonValueKind.Null, me.GetProperty("chip").ValueKind);
 
-        // 3. Successful text refinement → applied, quota 3→2.
+        // 3. Successful text refinement → applied, quota drops by one.
         StubEngine("success");
         var r1 = await Send(c, HttpMethod.Post, text);
         Assert.Equal("success", r1.body.GetProperty("status").GetString());
         Assert.True(r1.body.GetProperty("applied").GetBoolean());
-        Assert.Equal(2, r1.body.GetProperty("quotaRemaining").GetInt32());
+        Assert.Equal(cap - 1, r1.body.GetProperty("quotaRemaining").GetInt32());
 
-        // 4. Gibberish → not applied, NO credit consumed (still 2).
+        // 4. Gibberish → not applied, NO credit consumed (still cap-1).
         StubEngine("rejected_gibberish");
         var r2 = await Send(c, HttpMethod.Post, text);
         Assert.False(r2.body.GetProperty("applied").GetBoolean());
-        Assert.Equal(2, r2.body.GetProperty("quotaRemaining").GetInt32());
+        Assert.Equal(cap - 1, r2.body.GetProperty("quotaRemaining").GetInt32());
 
         // 5. URL refinements are disabled (legal: no publisher fetching).
         //    The BFF rejects them outright with 400 — no engine call, no credit.
@@ -189,10 +192,11 @@ public class RefineEndpointsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, r3.code);
         Assert.Equal("url_disabled", r3.body.GetProperty("error").GetString());
 
-        // 6. Two more successes exhaust the free quota (2→1→0).
+        // 6. Further successes exhaust the remaining free quota down to 0.
         StubEngine("success");
-        Assert.Equal(1, (await Send(c, HttpMethod.Post, text)).body.GetProperty("quotaRemaining").GetInt32());
-        Assert.Equal(0, (await Send(c, HttpMethod.Post, text)).body.GetProperty("quotaRemaining").GetInt32());
+        for (var remaining = cap - 2; remaining >= 0; remaining--)
+            Assert.Equal(remaining,
+                (await Send(c, HttpMethod.Post, text)).body.GetProperty("quotaRemaining").GetInt32());
 
         // 7. 4th successful attempt is blocked → 429.
         var blocked = await Send(c, HttpMethod.Post, text);
@@ -209,10 +213,11 @@ public class RefineEndpointsTests : IAsyncLifetime
         var meAfter = await c.GetFromJsonAsync<JsonElement>($"/matches/{_matchId}/me", J);
         Assert.Equal(JsonValueKind.Null, meAfter.GetProperty("chip").ValueKind);
 
-        // 10. Ledger charged exactly 3 (the successful POSTs only).
+        // 10. Ledger charged exactly `cap` (every successful POST; the PUT edit
+        //     and the gibberish/url attempts cost nothing).
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WcDbContext>();
         var charged = await db.QuotaLedger.SumAsync(q => q.SuccessCount);
-        Assert.Equal(3, charged);
+        Assert.Equal(cap, charged);
     }
 }
