@@ -20,8 +20,6 @@ public sealed class RefinementService(
     LlmGatewayClient gateway,
     ILogger<RefinementService> log)
 {
-    private const int ArticleContextSize = 8;
-
     public Task<RefineResult> RefineAsync(
         Guid matchId, Guid baselineId, string userNote, CancellationToken ct) =>
         RefineAsync(matchId, baselineId, userNote, messages: null, ct);
@@ -47,7 +45,7 @@ public sealed class RefinementService(
         var articles = await BaselineService
             .RelevantArticles(db, match.HomeTeam.Name, match.AwayTeam.Name)
             .OrderByDescending(a => a.FetchedAt)
-            .Take(ArticleContextSize)
+            .Take(BaselineService.ArticleContextSize)
             .ToListAsync(ct);
 
         using var bp = JsonDocument.Parse(baseline.OutcomeProbs);
