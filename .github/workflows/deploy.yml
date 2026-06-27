@@ -82,6 +82,10 @@ jobs:
       - name: azd deploy
         env:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          # Required alongside AZURE_SUBSCRIPTION_ID — without the tenant, azd
+          # can't resolve credentials for the ACR token exchange and fails with
+          # "ClientAssertionCredential: unable to resolve an endpoint".
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
         run: azd deploy --no-prompt
 
