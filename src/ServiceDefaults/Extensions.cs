@@ -28,8 +28,26 @@ public static class Extensions
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
-            // Turn on resilience by default
-            http.AddStandardResilienceHandler();
+            // Turn on resilience by default. The stock defaults (10s per-attempt
+            // / 30s total) are tuned for fast microservice hops and are far too
+            // tight for our LLM path: both BFF->prediction-engine (/refine) and
+            // prediction-engine->llm-gateway (/predict) wrap a Claude call that
+            // routinely takes 20-40s. With the defaults those calls timed out at
+            // the 10s attempt limit, so baselines silently failed to build and
+            // chat returned 500. Per-client overrides don't work here — the
+            // handler added via ConfigureHttpClientDefaults reads a single shared
+            // (empty-named) options instance — so we widen it globally. The only
+            // other HTTP clients are background ingestion (API-Football, RSS),
+            // which tolerate a generous ceiling fine.
+            http.AddStandardResilienceHandler(o =>
+            {
+                o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(90);
+                o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
+                // CircuitBreaker sampling must be >= 2x the attempt timeout.
+                o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(180);
+                // Don't fire 3 fresh LLM calls on a slow response — one retry.
+                o.Retry.MaxRetryAttempts = 1;
+            });
 
             // Turn on service discovery by default
             http.AddServiceDiscovery();
