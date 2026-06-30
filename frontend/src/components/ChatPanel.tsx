@@ -104,6 +104,15 @@ export default function ChatPanel({
         quotaRemaining: res.quotaRemaining,
         userMessageMax: prev?.userMessageMax ?? (res.tier === 'anon' ? 150 : 750),
       }))
+    } catch {
+      // Network/timeout/5xx — don't leave the user staring at a dead thread.
+      event('chat_message_failed', { matchId })
+      setBubbles((prev) => [...prev, {
+        role: 'assistant',
+        text: "Something went wrong reaching the prediction engine. Please try again.",
+        status: 'error',
+        refined: null,
+      }])
     } finally {
       setBusy(false)
     }

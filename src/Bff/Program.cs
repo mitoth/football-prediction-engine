@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Http.Resilience;
 using WcPredictions.Bff;
 using WcPredictions.Data;
 
@@ -23,7 +24,22 @@ builder.Services.AddScoped(sp => new CurrentUser(
     sp.GetRequiredService<WcDbContext>()));
 builder.Services.AddScoped<QuotaService>();
 builder.Services.AddHttpClient<PredictionEngineClient>(c =>
-    c.BaseAddress = new Uri("https+http://prediction-engine"));
+{
+    c.BaseAddress = new Uri("https+http://prediction-engine");
+    c.Timeout = TimeSpan.FromMinutes(3);
+});
+// The engine's /refine makes an LLM call that routinely exceeds the standard
+// resilience handler's 10s attempt / 30s total timeout — chat was timing out
+// at this BFF→engine hop and the SPA showed nothing. Give it LLM-grade
+// headroom (mirrors PredictionEngine's LlmGatewayClient). Keyed by client name.
+builder.Services.Configure<HttpStandardResilienceOptions>("PredictionEngineClient", o =>
+{
+    o.Retry.MaxRetryAttempts = 1;
+    o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(100);
+    o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
+    // Must be >= 2x AttemptTimeout.
+    o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(240);
+});
 
 // The Vite SPA is a separate origin (Aspire assigns it its own port), so the
 // browser needs CORS to reach the BFF. Chat mode rides on the mf_anon_id
