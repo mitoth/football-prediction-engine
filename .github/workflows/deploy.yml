@@ -138,13 +138,18 @@ jobs:
       - name: Install
         run: npm ci
 
-      # Vite reads VITE_* env at build time — bake the prod BFF URL + Clerk key
-      # into the bundle here. PROD_API_URL must point at the public Container
-      # Apps URL of the BFF (printed by `azd show` after the first deploy).
+      # Vite reads VITE_* env at build time — bake the prod config into the
+      # bundle here. These are all public client-side values (they ship in the
+      # JS). Without the PostHog + Cloudflare vars, analytics.ts no-ops and the
+      # SPA records zero events — which is exactly what happened once frontend
+      # deploys moved from the laptop (.env.production.local) to CI.
       - name: Build
         env:
           VITE_API_URL: ${{ secrets.PROD_API_URL }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.PROD_CLERK_PUBLISHABLE_KEY }}
+          VITE_POSTHOG_KEY: ${{ secrets.PROD_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.PROD_POSTHOG_HOST }}
+          VITE_CLOUDFLARE_BEACON_TOKEN: ${{ secrets.PROD_CF_BEACON_TOKEN }}
         run: npm run build
 
       - name: Deploy to Azure Static Web Apps
