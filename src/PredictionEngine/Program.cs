@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Http.Resilience;
 using Quartz;
 using WcPredictions.Data;
 using WcPredictions.PredictionEngine;
@@ -16,7 +17,23 @@ builder.AddRedisDistributedCache("cache");
 // Typed client to the LLM Gateway. "https+http://llm-gateway" lets Aspire
 // service discovery resolve the actual address (https preferred, http fallback).
 builder.Services.AddHttpClient<LlmGatewayClient>(c =>
-    c.BaseAddress = new Uri("https+http://llm-gateway"));
+{
+    c.BaseAddress = new Uri("https+http://llm-gateway");
+    c.Timeout = TimeSpan.FromMinutes(3);
+});
+// ServiceDefaults applies AddStandardResilienceHandler() to every client — a
+// 30s total timeout. An LLM prediction over a 20-article context (MaxTokens
+// 16000) routinely needs longer, and the heaviest matches (France, Belgium)
+// were timing out and getting NO baseline. Give this client (predict + refine)
+// LLM-grade headroom. Options are keyed by the typed-client name.
+builder.Services.Configure<HttpStandardResilienceOptions>("LlmGatewayClient", o =>
+{
+    o.Retry.MaxRetryAttempts = 1;
+    o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(100);
+    o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
+    // Must be >= 2x AttemptTimeout; keep clear of the boundary.
+    o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(240);
+});
 
 builder.Services.AddScoped<BaselineService>();
 builder.Services.AddScoped<RefinementService>();

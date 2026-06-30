@@ -21,10 +21,11 @@ public sealed class BaselineService(
     // Max articles fed to the LLM. Everything reaching this slice has already
     // passed the team word-boundary relevance filter (RelevantArticles), so
     // this is purely a prompt-size/token-cost ceiling — not a relevance gate.
-    // Raised from 8: feed all legit team news up to this bound. Kept finite so
-    // a high-volume team (e.g. "Brazil" during the WC) can't dump 100+ items
-    // into every baseline build. RefinementService shares this constant.
-    public const int ArticleContextSize = 30;
+    // Feed all legit team news up to this bound. Kept finite so a high-volume
+    // team (e.g. "Brazil" during the WC) can't dump 100+ items into every
+    // build (and to keep the LLM call inside its timeout). RefinementService
+    // shares this constant.
+    public const int ArticleContextSize = 20;
     private static readonly DistributedCacheEntryOptions CacheTtl = new()
     {
         AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(6),
