@@ -14,8 +14,7 @@ namespace WcPredictions.Ingestion.Tests;
 
 // §16 Phase 1 exit: after a sync, a known World Cup fixture + teams and ≥1
 // article are queryable in Postgres. Real Postgres via Testcontainers;
-// API-Football stubbed with WireMock; the news layer is curated football RSS,
-// stubbed by WireMock serving an RSS 2.0 feed (the news layer is keyless).
+// API-Football and NewsData.io stubbed with WireMock.
 public class IngestionIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _pg =
@@ -79,24 +78,25 @@ public class IngestionIntegrationTests : IAsyncLifetime
                 }
             }));
 
-        const string rss = """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <rss version="2.0"><channel>
-              <title>BBC Sport Football</title>
-              <link>https://news.test/</link>
-              <description>Football</description>
-              <item>
-                <title>WC 2026 preview: Brazil v Argentina</title>
-                <link>https://news.test/wc1</link>
-                <description>Brazil v Argentina opens the tournament.</description>
-                <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-              </item>
-            </channel></rss>
-            """;
-        _wire.Given(Request.Create().WithPath("/football.rss").UsingGet())
-            .RespondWith(Response.Create()
-                .WithHeader("Content-Type", "application/rss+xml")
-                .WithBody(rss));
+        _wire.Given(Request.Create().WithPath("/news").UsingGet())
+            .RespondWith(Response.Create().WithBodyAsJson(new
+            {
+                status = "success",
+                totalResults = 1,
+                results = new[]
+                {
+                    new
+                    {
+                        article_id = "a1",
+                        title = "WC 2026 preview: Brazil v Argentina",
+                        link = "https://news.test/wc1",
+                        description = "Brazil v Argentina opens the tournament.",
+                        source_id = "newsdata-bbc",
+                        source_name = "BBC",
+                        pubDate = "2026-05-01 00:00:00",
+                    }
+                }
+            }));
 
         var afOpts = Options.Create(new ApiFootballOptions
         {
@@ -104,9 +104,12 @@ public class IngestionIntegrationTests : IAsyncLifetime
             ApiKey = "test",
             Leagues = [new LeagueSeason { LeagueId = 1, Season = 2026 }],
         });
-        var rssOpts = Options.Create(new RssOptions
+        var newsOpts = Options.Create(new NewsDataOptions
         {
-            Feeds = [new() { Url = $"{_wire.Url}/football.rss", Outlet = "BBC Sport" }],
+            BaseUrl = _wire.Url!,
+            ApiKey = "test",
+            Queries = ["football"],
+            PageSize = 50,
         });
 
         await using (var db = NewDb())
@@ -120,8 +123,10 @@ public class IngestionIntegrationTests : IAsyncLifetime
         await using (var db = NewDb())
         {
             await new NewsSyncService(
-                new FootballRssClient(new HttpClient(), NullLogger<FootballRssClient>.Instance),
-                db, rssOpts, NullLogger<NewsSyncService>.Instance).SyncAsync(default);
+                new NewsDataClient(
+                    new HttpClient { BaseAddress = new Uri(_wire.Url!) },
+                    NullLogger<NewsDataClient>.Instance),
+                db, newsOpts, NullLogger<NewsSyncService>.Instance).SyncAsync(default);
         }
 
         await using var verify = NewDb();
@@ -135,11 +140,10 @@ public class IngestionIntegrationTests : IAsyncLifetime
         Assert.Equal(2, await verify.Teams.CountAsync());
 
         var article = await verify.Articles.SingleAsync();
-        Assert.Equal("BBC Sport", article.Outlet);
+        Assert.Equal("BBC", article.Outlet);
         Assert.Equal("https://news.test/wc1", article.Url);
         Assert.Equal("WC 2026 preview: Brazil v Argentina", article.Headline);
         Assert.NotNull(article.PublishedAt);
-        // Npgsql refuses non-UTC offsets on timestamptz; FootballRssClient normalizes.
         Assert.Equal(TimeSpan.Zero, article.PublishedAt!.Value.Offset);
 
         // Idempotency: second fixture + news sync must not duplicate.
@@ -152,8 +156,10 @@ public class IngestionIntegrationTests : IAsyncLifetime
         await using (var db = NewDb())
         {
             await new NewsSyncService(
-                new FootballRssClient(new HttpClient(), NullLogger<FootballRssClient>.Instance),
-                db, rssOpts, NullLogger<NewsSyncService>.Instance).SyncAsync(default);
+                new NewsDataClient(
+                    new HttpClient { BaseAddress = new Uri(_wire.Url!) },
+                    NullLogger<NewsDataClient>.Instance),
+                db, newsOpts, NullLogger<NewsSyncService>.Instance).SyncAsync(default);
         }
         Assert.Equal(1, await verify.Matches.CountAsync());
         Assert.Equal(1, await verify.Articles.CountAsync());

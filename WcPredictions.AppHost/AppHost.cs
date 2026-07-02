@@ -54,8 +54,9 @@ var clerkSecretKey = builder.AddParameter("clerk-secret-key", Cfg("clerk-secret-
 
 // --- Ingestion / model API keys ---------------------------------------------
 // Empty fallback ⇒ no prompt when unset; services degrade gracefully and the
-// integration tests stub the upstreams. News is curated football RSS (no key).
+// integration tests stub the upstreams.
 var apiFootballKey = builder.AddParameter("api-football-key", Cfg("api-football-key"), secret: true);
+var newsDataKey = builder.AddParameter("news-data-key", Cfg("news-data-key"), secret: true);
 var anthropicKey = builder.AddParameter("anthropic-api-key", Cfg("anthropic-api-key"), secret: true);
 
 // --- Services ---------------------------------------------------------------
@@ -73,6 +74,7 @@ var predictionEngine = builder.AddProject<Projects.WcPredictions_PredictionEngin
 var ingestion = builder.AddProject<Projects.WcPredictions_Ingestion>("ingestion")
     .WithReference(wcdb)
     .WithEnvironment("ApiFootball__ApiKey", apiFootballKey)
+    .WithEnvironment("News__ApiKey", newsDataKey)
     .WaitFor(wcdb);
 
 var bff = builder.AddProject<Projects.WcPredictions_Bff>("bff")
