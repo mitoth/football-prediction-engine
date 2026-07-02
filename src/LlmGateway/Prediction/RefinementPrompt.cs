@@ -38,8 +38,16 @@ internal static class RefinementPrompt
 
         Rules:
         - Output ONLY the structured JSON the schema requires. No prose outside it.
+        - Predict the result after 90 minutes of normal time (incl. stoppage)
+          ONLY — never factor in extra time or penalties. A level score after 90
+          minutes is a DRAW even in a knockout; keep it in outcome_probs.draw and
+          do not resolve it to a winner.
         - outcome_probs.home + draw + away MUST sum to 1.0 (≤3 decimals).
-        - pred_home / pred_away are integers (most likely final scoreline).
+        - pred_home / pred_away are integers (most likely scoreline after 90 min).
+        - Weigh only football evidence genuinely about these two teams and this
+          fixture (form, injuries, suspensions, lineups, tactics, stakes, rest,
+          conditions). Ignore and do NOT cite off-pitch/unrelated content that
+          merely names a team.
         - "citations" may ONLY contain article ids supplied in <untrusted_data>.
           Never invent ids or URLs.
 
