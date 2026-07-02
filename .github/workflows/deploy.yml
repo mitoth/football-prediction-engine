@@ -39,17 +39,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           sha='${{ github.sha }}'
-          echo "Checking ci.yml conclusion for $sha"
-          concl=$(gh api \
-            "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$sha&status=completed&per_page=1" \
-            --jq '.workflow_runs[0].conclusion // "missing"')
-          echo "CI conclusion: $concl"
-          if [ "$concl" != "success" ]; then
-            echo "::error::Refusing to deploy — CI for $sha is '$concl' (need 'success'). Wait for CI to finish/pass, then re-run this workflow."
-            exit 1
-          fi
+          echo "Gating deploy on CI (ci.yml) for $sha"
+          # Poll: the head_sha index lags for a minute or two right after CI
+          # completes, so a single-shot query can spuriously read 'missing'.
+          # Wait for a definitive result — pass on success, fail fast on a real
+          # failure, keep waiting while it's queued/in-progress/not-yet-indexed.
+          for i in $(seq 1 12); do
+            run=$(gh api \
+              "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$sha&per_page=1" \
+              --jq '.workflow_runs[0] | "\(.status) \(.conclusion)"' 2>/dev/null || echo "none none")
+            status="${run%% *}"; concl="${run##* }"
+            echo "attempt $i: status=$status conclusion=$concl"
+            if [ "$concl" = "success" ]; then echo "CI is green."; exit 0; fi
+            if [ "$status" = "completed" ] && [ "$concl" != "success" ]; then
+              echo "::error::CI for $sha concluded '$concl' — refusing to deploy."
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "::error::CI for $sha did not reach a green result in time — refusing to deploy. Re-run once CI passes."
+          exit 1
 
   # ---- Backend: Aspire AppHost → Azure Container Apps via azd ---------------
   deploy-backend:
